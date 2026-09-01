@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from backend.app.db.repository.audit_repo import AuditRepository
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 )
 async def handle_razorpay_webhook(
     request: Request,
-    x_razorpay_signature: str = Header(None, alias="X-Razorpay-Signature"),
+    x_razorpay_signature: Optional[str] = Header(None, alias="X-Razorpay-Signature"),
     rzp_client: RazorpayClient = Depends(get_razorpay_client),
     audit_repo: AuditRepository = Depends(AuditRepository),
 ) -> Dict[str, Any]:

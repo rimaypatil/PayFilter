@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Header, status
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
 
 # Root proxy imports from Phase 1
 from ml.features import extract_single_transaction_features
