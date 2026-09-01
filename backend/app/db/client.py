@@ -210,6 +210,8 @@ class InMemorySupabaseClient:
             "transactions": [],
             "audit_log": [],
             "rules_config": [],
+            "user_roles": [],
+            "kill_switch": [],
         }
         self.current_merchant_id = current_merchant_id
 

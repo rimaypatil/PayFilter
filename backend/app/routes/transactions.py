@@ -1,17 +1,19 @@
-"""Transaction scoring route (POST /transactions/check)."""
+"""Transaction scoring route (POST /transactions/check) with API Key Auth & Kill Switch check."""
 
 from __future__ import annotations
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Header, status
 
 # Root proxy imports from Phase 1
 from features import extract_single_transaction_features
 from backend.app.db.models import RulesConfig
 from backend.app.db.repository.audit_repo import AuditRepository
+from backend.app.db.repository.merchants_repo import MerchantsRepository
 from backend.app.db.repository.rules_repo import RulesRepository
 from backend.app.db.repository.transactions_repo import TransactionsRepository
+from backend.app.dependencies import require_api_key
 from backend.app.risk_engine.idempotency import IdempotencyChecker
 from backend.app.risk_engine.model import MLModelManager, get_model_manager
 from backend.app.risk_engine.rules import RuleEngine
@@ -35,6 +37,10 @@ def get_rules_repo() -> RulesRepository:
     return RulesRepository()
 
 
+def get_merchants_repo() -> MerchantsRepository:
+    return MerchantsRepository()
+
+
 def get_risk_scorer() -> RiskScorer:
     return RiskScorer()
 
@@ -43,45 +49,102 @@ def get_risk_scorer() -> RiskScorer:
     "/check",
     response_model=TransactionCheckResponse,
     status_code=status.HTTP_200_OK,
-    summary="Evaluate transaction risk and return decision",
+    summary="Evaluate transaction risk and return decision (Requires Merchant API Key)",
 )
 def check_transaction(
     request: TransactionCheckRequest,
+    auth_merchant_id: str = Depends(require_api_key),
     txns_repo: TransactionsRepository = Depends(get_txns_repo),
     audit_repo: AuditRepository = Depends(get_audit_repo),
     rules_repo: RulesRepository = Depends(get_rules_repo),
+    merchants_repo: MerchantsRepository = Depends(get_merchants_repo),
     scorer: RiskScorer = Depends(get_risk_scorer),
     model_manager: MLModelManager = Depends(get_model_manager),
 ) -> TransactionCheckResponse:
     """Evaluates an incoming AI-agent payment transaction.
 
     Workflow:
-    1. Idempotency check: If transaction_id already exists, return stored decision.
-    2. Customer history retrieval: Fetch past transactions strictly prior to t_curr.
-    3. Feature extraction: Compute leakage-safe feature vector (features.py).
-    4. Deterministic rules check: Evaluate merchant caps and velocity (rules.py).
-    5. Scoring decision: Combine rules + ML anomaly model (scorer.py).
-    6. Database persistence: Write record to transactions table.
-    7. Audit log append: Write cryptographically hash-chained entry to audit_log.
-    8. Return structured decision.
-
-    # AUTH: added in Phase 3
+    1. Authenticate calling merchant via API key (X-API-Key).
+    2. Enforce tenant ownership (request.merchant_id must match authenticated merchant).
+    3. Check Kill Switch: If active, block transaction immediately.
+    4. Idempotency check: If transaction_id already exists, return stored decision.
+    5. Customer history retrieval: Fetch past transactions strictly prior to t_curr.
+    6. Feature extraction: Compute leakage-safe feature vector (features.py).
+    7. Deterministic rules check: Evaluate merchant caps and velocity (rules.py).
+    8. Scoring decision: Combine rules + ML anomaly model (scorer.py).
+    9. Database persistence: Write record to transactions table.
+    10. Audit log append: Write cryptographically hash-chained entry to audit_log.
+    11. Return structured decision.
     """
-    # 1. Idempotency Check
+    # 1. Enforce matching tenant ownership
+    if request.merchant_id and request.merchant_id != auth_merchant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Merchant ID mismatch with authenticated API key.",
+        )
+
+    # 2. Check Merchant Kill Switch Status
+    kill_switch = merchants_repo.get_kill_switch_state(auth_merchant_id)
+    if kill_switch.is_active:
+        logger.warning(f"Transaction {request.transaction_id} BLOCKED: Kill switch is ACTIVE for merchant {auth_merchant_id}")
+        reason_blocked = {
+            "decision": "blocked",
+            "primary_driver": "kill_switch_activated",
+            "rule_name": "emergency_kill_switch",
+            "rule_type": "hard",
+            "rule_reason": kill_switch.reason or "Emergency kill switch active",
+            "model_score": 1.0,
+            "thresholds": {"hold": 0.45, "block": 0.70},
+            "feature_drivers": ["merchant_kill_switch_engaged"],
+        }
+
+        # Persist blocked transaction
+        txn_record_data = {
+            "id": request.transaction_id,
+            "merchant_id": auth_merchant_id,
+            "customer_id": request.customer_id,
+            "amount": request.amount,
+            "agent_type": request.agent_type,
+            "status": "blocked",
+            "risk_score": 1.0,
+            "reason": reason_blocked,
+            "model_version": model_manager.model_version,
+            "created_at": request.timestamp.isoformat(),
+        }
+        persisted_txn = txns_repo.create_transaction(txn_record_data)
+
+        # Audit entry
+        audit_entry = audit_repo.append_audit_entry(
+            merchant_id=auth_merchant_id,
+            action="transaction_scored:blocked:kill_switch",
+            transaction_id=request.transaction_id,
+            actor="system",
+            created_at=request.timestamp.isoformat(),
+        )
+
+        return TransactionCheckResponse(
+            transaction_id=persisted_txn.id,
+            status="blocked",
+            risk_score=1.0,
+            reason=reason_blocked,
+            audit_log_id=audit_entry.id or "",
+        )
+
+    # 3. Idempotency Check
     idempotency = IdempotencyChecker(transactions_repo=txns_repo)
     cached_result = idempotency.check_existing(request.transaction_id)
     if cached_result is not None:
         logger.info(f"Duplicate transaction_id '{request.transaction_id}' detected. Returning cached decision.")
         return cached_result
 
-    # 2. Fetch Customer History strictly before current timestamp
+    # 4. Fetch Customer History strictly before current timestamp
     customer_history_df = txns_repo.get_customer_history(
         customer_id=request.customer_id,
         before_timestamp=request.timestamp,
-        merchant_id=request.merchant_id,
+        merchant_id=auth_merchant_id,
     )
 
-    # 3. Extract Leakage-Safe Features
+    # 5. Extract Leakage-Safe Features
     txn_dict = {
         "customer_id": request.customer_id,
         "amount": request.amount,
@@ -94,21 +157,21 @@ def check_transaction(
         customer_history_df=customer_history_df,
     )
 
-    # 4. Deterministic Rules Evaluation
-    rules_config: RulesConfig = rules_repo.get_rules_config(request.merchant_id)
+    # 6. Deterministic Rules Evaluation
+    rules_config: RulesConfig = rules_repo.get_rules_config(auth_merchant_id)
     rule_engine = RuleEngine(transactions_repo=txns_repo)
     rule_result = rule_engine.evaluate_rules(request, rules_config)
 
-    # 5. ML Scoring & Threshold Decision
+    # 7. ML Scoring & Threshold Decision
     decision_status, risk_score, reason = scorer.score_transaction(
         rule_result=rule_result,
         features=feature_vector,
     )
 
-    # 6. Persist Transaction Record
+    # 8. Persist Transaction Record
     txn_record_data = {
         "id": request.transaction_id,
-        "merchant_id": request.merchant_id,
+        "merchant_id": auth_merchant_id,
         "customer_id": request.customer_id,
         "amount": request.amount,
         "agent_type": request.agent_type,
@@ -120,16 +183,16 @@ def check_transaction(
     }
     persisted_txn = txns_repo.create_transaction(txn_record_data)
 
-    # 7. Append to Cryptographic Audit Chain
+    # 9. Append to Cryptographic Audit Chain
     audit_entry = audit_repo.append_audit_entry(
-        merchant_id=request.merchant_id,
+        merchant_id=auth_merchant_id,
         action=f"transaction_scored:{decision_status}",
         transaction_id=request.transaction_id,
         actor="system",
         created_at=request.timestamp.isoformat(),
     )
 
-    # 8. Return Response
+    # 10. Return Response
     return TransactionCheckResponse(
         transaction_id=persisted_txn.id,
         status=persisted_txn.status,  # type: ignore

@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = "https://mock.supabase.co"
     SUPABASE_SERVICE_KEY: str = "mock-service-role-key"
     SUPABASE_ANON_KEY: str = "mock-anon-key"
+    SUPABASE_JWT_SECRET: str = "mock-supabase-jwt-secret-key-for-test-signature-verification-12345"
+    SUPABASE_JWKS_URL: Optional[str] = None
+    SUPABASE_AUDIENCE: str = "authenticated"
 
     # Testing keys for RLS simulation
     SUPABASE_MERCHANT_A_KEY: Optional[str] = None
@@ -22,6 +25,14 @@ class Settings(BaseSettings):
     # Model file paths (defaults to Phase 1 ml/models location)
     MODEL_PATH: str = str(Path(__file__).resolve().parent.parent.parent / "ml" / "models" / "isolation_forest.pkl")
     MODEL_METADATA_PATH: str = str(Path(__file__).resolve().parent.parent.parent / "ml" / "models" / "model_metadata.json")
+
+    # Timeout and Confirmation settings
+    HELD_TIMEOUT_SECONDS: int = 120
+    LARGE_AMOUNT_THRESHOLD: float = 25000.0
+    ENABLE_BACKGROUND_TIMEOUT_WORKER: bool = False
+
+    # Step-Up Auth settings
+    STEP_UP_EXPIRY_SECONDS: int = 300
 
     # Service configuration
     HOST: str = "0.0.0.0"

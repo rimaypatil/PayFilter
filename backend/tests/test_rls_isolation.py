@@ -1,6 +1,11 @@
-"""Unit and tenant isolation tests for Row-Level Security (RLS) policies."""
+"""[DEPRECATED in Phase 3] Unit and tenant isolation tests for Row-Level Security (RLS) policies.
 
-import pytest
+NOTE: This Phase 2 manual-key simulation test is DEPRECATED in favor of
+`backend/tests/test_rls_with_auth.py`, which provides authoritative proof of multi-tenant
+isolation using real Supabase Auth JWT sessions and user_roles mappings.
+"""
+
+from typing import Any
 
 from backend.app.db.client import InMemorySupabaseClient, InMemorySupabaseTable
 from backend.app.db.repository.audit_repo import AuditRepository

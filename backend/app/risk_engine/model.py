@@ -36,6 +36,8 @@ class MLModelManager:
             SecurityError: If model integrity verification fails.
             FileNotFoundError: If model or metadata files do not exist.
         """
+        if self._model is not None:
+            return
         logger.info("Verifying model integrity and loading IsolationForest...")
         model, metadata = load_secure_model(
             model_path=self.model_path,

@@ -104,3 +104,39 @@ class TransactionsRepository:
             .execute()
         )
         return res.count if hasattr(res, "count") and res.count is not None else len(res.data or [])
+
+    def update_transaction_status(
+        self,
+        transaction_id: str,
+        status: str,
+        reason: Optional[Dict[str, Any]] = None,
+    ) -> Optional[TransactionRecord]:
+        """Updates the status and reason of an existing transaction."""
+        update_payload: Dict[str, Any] = {"status": status}
+        if reason is not None:
+            update_payload["reason"] = reason
+
+        res = self.client.table("transactions").update(update_payload).eq("id", transaction_id).execute()
+        if res.data and len(res.data) > 0:
+            return TransactionRecord(**res.data[0])
+        # In mock or postgres return refreshed record
+        return self.get_transaction_by_id(transaction_id)
+
+    def get_unresolved_held_transactions(
+        self,
+        older_than_timestamp: datetime,
+        merchant_id: Optional[str] = None,
+    ) -> List[TransactionRecord]:
+        """Queries for transactions currently in 'held' status created before older_than_timestamp."""
+        query = (
+            self.client.table("transactions")
+            .select("*")
+            .eq("status", "held")
+            .lte("created_at", older_than_timestamp.isoformat())
+        )
+        if merchant_id:
+            query = query.eq("merchant_id", merchant_id)
+
+        res = query.execute()
+        rows = res.data if isinstance(res.data, list) else []
+        return [TransactionRecord(**r) for r in rows]

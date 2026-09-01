@@ -1,6 +1,6 @@
-# PayFilter — AI Agent Transaction Risk Engine
+# PayFilter — AI Agent Transaction Risk Engine & Auth Platform
 
-PayFilter is an intelligent, real-time risk mitigation, anomaly detection, and cryptographic audit logging platform built for autonomous AI-agent-initiated transactions prior to Razorpay order creation.
+PayFilter is an intelligent, real-time risk mitigation, anomaly detection, cryptographic audit logging, and human-in-the-loop confirmation platform designed for autonomous AI-agent-initiated payments before Razorpay order creation.
 
 ---
 
@@ -22,56 +22,72 @@ payfilter/
 │   │   └── model_metadata.json      # Cryptographic SHA-256 model hashes & metadata
 │   └── tests/                       # Phase 1 unit and integrity test suite
 │
-├── backend/                         # Phase 2: Backend Risk Engine & Database
+├── backend/                         # Phase 2 & Phase 3: Backend Risk Engine & Auth
 │   ├── app/
-│   │   ├── main.py                  # FastAPI application entrypoint, CORS, lifespan
+│   │   ├── main.py                  # FastAPI entrypoint, lifespan integrity checks, CORS
 │   │   ├── config.py                # Environment configuration & settings
+│   │   ├── dependencies.py          # FastAPI dependencies (get_current_user, require_role, require_api_key)
 │   │   ├── schemas.py               # Pydantic request/response validation schemas
 │   │   │
+│   │   ├── auth/                    # Phase 3 Auth & Security Layer
+│   │   │   ├── jwt_verify.py        # Supabase JWT signature, claims, and expiry verification
+│   │   │   ├── api_key_auth.py      # Merchant API key verification (SHA-256 hashed lookup)
+│   │   │   ├── permissions.py       # RBAC role checks (admin vs analyst)
+│   │   │   └── step_up.py           # Short-lived server-side OTP flow for critical operations
+│   │   │
 │   │   ├── routes/
-│   │   │   ├── transactions.py      # POST /transactions/check
-│   │   │   ├── audit.py             # GET /audit-log (paginated)
-│   │   │   └── health.py            # GET /health
+│   │   │   ├── health.py            # GET /health
+│   │   │   ├── merchants.py         # POST /merchants/signup, POST /merchants/api-key/rotate
+│   │   │   ├── transactions.py      # POST /transactions/check (Requires X-API-Key)
+│   │   │   ├── confirmations.py     # POST /transactions/{id}/confirm (Analyst/Admin JWT)
+│   │   │   ├── kill_switch.py       # POST /kill-switch/request, POST /kill-switch/confirm
+│   │   │   ├── rules.py             # GET /rules, PUT /rules (Admin JWT)
+│   │   │   └── audit.py             # GET /audit-log (Analyst/Admin JWT)
 │   │   │
 │   │   ├── risk_engine/
 │   │   │   ├── rules.py             # Hard caps, category limits, & velocity checks
 │   │   │   ├── model.py             # Verified ML inference with SHA-256 validation
 │   │   │   ├── scorer.py            # Decision tier synthesizer (approve/hold/block)
-│   │   │   └── idempotency.py       # Replay cache preventing duplicate processing
+│   │   │   ├── idempotency.py       # Replay cache preventing duplicate processing
+│   │   │   └── timeout_handler.py   # Scheduled auto-resolution for stale held transactions
 │   │   │
 │   │   └── db/
 │   │       ├── client.py            # Supabase Python client & test simulator
-│   │       ├── models.py            # Pydantic models mirroring Postgres tables
+│   │       ├── models.py            # Pydantic models (Merchant, UserRole, RulesConfig, etc.)
 │   │       ├── audit_chain.py       # SHA-256 hash chaining & verify_chain()
 │   │       ├── repository/
-│   │       │   ├── transactions_repo.py
-│   │       │   ├── audit_repo.py    # Append-only audit repository
-│   │       │   ├── merchants_repo.py
-│   │       │   └── rules_repo.py
+│   │       │   ├── merchants_repo.py    # Merchant accounts, key rotation & user roles
+│   │       │   ├── transactions_repo.py # Transaction CRUD & timeout query
+│   │       │   ├── rules_repo.py        # Merchant limits & rule management
+│   │       │   └── audit_repo.py        # Append-only cryptographic audit trail
 │   │       └── migrations/
 │   │           ├── 0001_create_merchants.sql
 │   │           ├── 0002_create_transactions.sql
 │   │           ├── 0003_create_audit_log.sql
 │   │           ├── 0004_create_rules_config.sql
+│   │           ├── 0005_create_user_roles.sql    # Phase 3 RBAC schema
 │   │           ├── 0006_enable_rls.sql
 │   │           ├── 0007_rls_policies.sql
+│   │           ├── 0008_update_rls_for_auth.sql  # Phase 3 auth.uid()-based RLS policies
 │   │           └── seed_demo_data.sql
 │   │
 │   ├── tests/
+│   │   ├── test_auth.py             # JWT signature, expiry & API key verification tests
+│   │   ├── test_permissions.py      # RBAC role authorization tests (admin vs analyst)
+│   │   ├── test_confirmations.py    # Human approval/denial & threshold adaptation tests
+│   │   ├── test_kill_switch.py      # Step-up OTP & emergency kill switch tests
+│   │   ├── test_timeout_handler.py  # Stale hold safe auto-resolution tests
+│   │   ├── test_rls_with_auth.py    # Multi-tenant isolation with real JWT user sessions
 │   │   ├── test_rules.py            # Deterministic rule evaluation tests
 │   │   ├── test_scorer.py           # 3-tier scoring synthesis tests
 │   │   ├── test_idempotency.py      # Duplicate request replay protection tests
 │   │   ├── test_audit_chain.py      # Cryptographic tamper detection tests
-│   │   ├── test_rls_isolation.py    # Multi-tenant DB isolation security tests
 │   │   └── test_api.py              # FastAPI end-to-end integration tests
 │   │
 │   ├── requirements.txt             # Backend dependencies
 │   └── .env.example                 # Environment variables template
 │
-├── features.py                      # Root proxy for ml.features
-├── threshold_manager.py             # Root proxy for ml.threshold_manager
-├── train_model.py                   # Root proxy for ml.train_model
-├── demo_phase2_decisions.py         # End-to-end demo script for all 3 decision tiers
+├── demo_phase3_workflow.py          # Complete Phase 3 end-to-end demonstration script
 ├── requirements.txt                 # Project-wide pinned dependencies
 ├── README.md                        # Documentation & setup guide
 └── ARCHITECTURE.md                  # Comprehensive system & flow architecture
@@ -79,158 +95,108 @@ payfilter/
 
 ---
 
-## 1. Backend Risk Engine Architecture (Phase 2)
+## 1. Authentication & Authorization (Phase 3)
 
-The PayFilter backend combines deterministic business rules with machine learning anomaly detection to produce instant, machine-readable risk decisions on every AI-agent checkout attempt.
+### Supabase JWT Verification (`jwt_verify.py`)
+- Every human-facing route (`/confirmations`, `/rules`, `/kill-switch`, `/audit-log`) requires an `Authorization: Bearer <token>` header.
+- Validates the token's cryptographic signature, expiry (`exp`), audience (`authenticated`), and user identity claims.
+- Rejects expired or forged tokens with HTTP 401 Unauthorized.
+
+### Merchant Backend API Keys (`api_key_auth.py`)
+- Used by merchant backend services when calling `POST /transactions/check`.
+- API keys follow the prefix format `pf_live_<32-byte-secure-token>`.
+- Plaintext keys are **never stored or logged** — only their SHA-256 digests are stored in Postgres.
+- Evaluates the caller's key hash and automatically scopes the evaluation context to the verified `merchant_id`.
+
+### Role-Based Access Control (RBAC) (`permissions.py`)
+| Role | Privileges |
+| :--- | :--- |
+| **`analyst`** | View transactions, view audit log, review and confirm held transactions (`approve`/`deny`). |
+| **`admin`** | All analyst capabilities + edit rules configuration (`PUT /rules`), rotate API keys (`POST /merchants/api-key/rotate`), and execute emergency kill switch (`POST /kill-switch/confirm`). |
+
+---
+
+## 2. Human Confirmation & Timeout Workflow
 
 ```text
-Incoming Transaction (POST /transactions/check)
-                     │
-                     ▼
-       ┌───────────────────────────┐
-       │   1. Idempotency Check    │ ── (Duplicate Found) ──► Return Cached Decision
-       └─────────────┬─────────────┘
-                     │ (New Transaction)
-                     ▼
-       ┌───────────────────────────┐
-       │ 2. Feature Extraction     │ ◄── Historical transactions (t_hist < t_curr)
-       │    (Leakage-Safe)         │
-       └─────────────┬─────────────┘
-                     │
-                     ▼
-       ┌───────────────────────────┐
-       │ 3. Deterministic Rules    │ ── (Hard Cap / Velocity Exceeded) ──► Block Decision
-       └─────────────┬─────────────┘
-                     │
-                     ▼
-       ┌───────────────────────────┐
-       │ 4. IsolationForest Model  │ ──► Normalized Anomaly Score [0.0 - 1.0]
-       │    (Verified SHA-256)     │
-       └─────────────┬─────────────┘
-                     │
-                     ▼
-       ┌───────────────────────────┐
-       │ 5. Risk Scorer Decision   │ ──► Approve / Hold / Block Decision
-       └─────────────┬─────────────┘
-                     │
-                     ├──────────────────────────┐
-                     ▼                          ▼
-       ┌───────────────────────────┐ ┌───────────────────────────────────┐
-       │ 6. Write to DB            │ │ 7. Append to Cryptographic Audit │
-       │    (transactions table)   │ │    (audit_log with SHA-256 chain) │
-       └───────────────────────────┘ └───────────────────────────────────┘
-                     │
-                     ▼
-        HTTP 200 JSON Response (status, risk_score, reason, audit_log_id)
+                ┌──────────────────────────────────────┐
+                │   Transaction Scored: Status 'held'  │
+                └──────────────────┬───────────────────┘
+                                   │
+              ┌────────────────────┴────────────────────┐
+              │                                         │
+       [Human Review]                            [Timeout Reached]
+              │                                         │
+              ▼                                         ▼
+   Analyst/Admin Decision                  TimeoutHandler Evaluation
+ (POST /transactions/{id}/confirm)             (Default: 120s)
+              │                                         │
+     ┌────────┴────────┐                       ┌────────┴────────┐
+     ▼                 ▼                       ▼                 ▼
+ 'approve'          'deny'              Amount > 25,000    Amount <= 25,000
+     │                 │                       │                 │
+     ▼                 ▼                       ▼                 ▼
+'approved'         'blocked'               'blocked'         'approved'
+     │                 │                (Safe Default)    (Low-Risk Default)
+     └────────┬────────┘                       │                 │
+              │                                └────────┬────────┘
+              ▼                                         ▼
+   Audit Trail Appended                      Audit Trail Appended
+ (action="confirmed_by_human")             (action="auto_resolved_timeout")
+              │                                         │
+              ▼                                         ▼
+   Adaptive Threshold Updated               Database Status Persisted
 ```
 
-### Risk Engine Components
-* **Deterministic Rules (`rules.py`)**: Fast checks for merchant maximum order value, per-minute transaction velocity caps, and optional category limits.
-* **Verified ML Model Inference (`model.py`)**: Evaluates the 10-dimensional feature vector using the Phase 1 Isolation Forest model. Verifies model binary hash integrity before inference.
-* **Unified Risk Scorer (`scorer.py`)**: Synthesizes rule outputs and model anomaly scores against dynamic thresholds managed by `AdaptiveThresholdManager`.
-  * `approved`: No rules triggered; anomaly score below hold threshold ($\text{score} < \theta_{\text{hold}}$).
-  * `held`: Soft rule triggered OR anomaly score in medium-risk band ($\theta_{\text{hold}} \le \text{score} < \theta_{\text{block}}$).
-  * `blocked`: Hard rule triggered OR anomaly score in high-risk band ($\text{score} \ge \theta_{\text{block}}$).
-* **Idempotency Guard (`idempotency.py`)**: Identifies re-submitted `transaction_id` requests and returns the stored decision without duplicate scoring or writes.
+### 1. Human Confirmation Route (`POST /transactions/{id}/confirm`)
+- Analyst submits `{"decision": "approve" | "deny"}`.
+- Enforces that the transaction belongs to the caller's merchant and is currently in `held` status.
+- Updates database status to `approved` or `blocked`.
+- Appends cryptographic audit entry with `action="confirmed_by_human"`.
+- Adjusts the customer's risk baseline via Phase 1 `AdaptiveThresholdManager` (strictly adhering to the 10% drift cap).
+
+### 2. Background Timeout Handler (`timeout_handler.py`)
+- Scans for unreviewed held transactions older than `HELD_TIMEOUT_SECONDS` (default: 120s).
+- **High-value holds ($> 25,000$)**: Resolves safely to `blocked` (preventing silent high-value exposure).
+- **Standard holds ($\le 25,000$)**: Resolves safely to `approved` (preventing low-risk orders from stalling).
+- Appends cryptographic audit log with `action="auto_resolved_timeout"`, `actor="system_timeout"`.
 
 ---
 
-## 2. Supabase Postgres Database Foundation
+## 3. Step-Up Authenticated Emergency Kill Switch
 
-### Database Tables
-1. **`merchants`**: Multi-tenant merchant identities (`id`, `name`, `api_key_hash`, `created_at`).
-2. **`transactions`**: Scored transaction records with machine-readable reasons and risk scores (`id`, `merchant_id`, `customer_id`, `amount`, `agent_type`, `status`, `risk_score`, `reason`, `model_version`, `created_at`).
-3. **`audit_log`**: Append-only cryptographic audit trail (`id`, `transaction_id`, `merchant_id`, `action`, `actor`, `prev_hash`, `row_hash`, `created_at`).
-4. **`rules_config`**: Merchant-customizable risk rules (`merchant_id`, `max_amount_per_order`, `max_transactions_per_minute`, `category_limits`).
+To protect merchants against compromised API keys or runaway agents, PayFilter includes an emergency kill switch requiring two-factor step-up verification:
 
-### Row-Level Security (RLS)
-* Enabled and forced on all tenant tables (`transactions`, `audit_log`, `rules_config`, `merchants`).
-* Scopes every query and mutation strictly to the caller's `merchant_id`.
-* Proved and validated via `test_rls_isolation.py`.
-
-### Append-Only Audit Log Enforcement
-* `REVOKE UPDATE, DELETE, TRUNCATE` applied at the database role level.
-* PostgreSQL trigger `trg_prevent_audit_log_mutation` raises an exception if any update or delete is attempted.
-
-### Applying Migrations to Supabase
-
-1. Open your [Supabase Dashboard](https://supabase.com/dashboard) and navigate to the **SQL Editor**.
-2. Run the migration files in numerical order:
-   * `backend/app/db/migrations/0001_create_merchants.sql`
-   * `backend/app/db/migrations/0002_create_transactions.sql`
-   * `backend/app/db/migrations/0003_create_audit_log.sql`
-   * `backend/app/db/migrations/0004_create_rules_config.sql`
-   * `backend/app/db/migrations/0006_enable_rls.sql`
-   * `backend/app/db/migrations/0007_rls_policies.sql`
-3. Optionally run `backend/app/db/migrations/seed_demo_data.sql` to populate demo merchants and rules.
+1. **Step-Up Request (`POST /kill-switch/request`)**:
+   - Requires authenticated `admin` JWT session.
+   - Generates a short-lived (5-minute) 6-digit numeric OTP stored server-side.
+2. **Step-Up Execution (`POST /kill-switch/confirm`)**:
+   - Requires both active `admin` session AND valid one-time OTP code.
+   - Sets merchant kill switch state to `active`.
+   - Appends audit entry `kill_switch_activated`.
+3. **Instant Risk Engine Enforcement**:
+   - While kill switch is active, all incoming `POST /transactions/check` requests for that merchant are instantly blocked with risk score `1.0` and primary driver `kill_switch_activated`.
 
 ---
 
-## 3. Cryptographic Audit Chain
+## 4. API Endpoints Reference
 
-Each audit log write computes a SHA-256 digest over the record's payload concatenated with the previous record's `row_hash` for that merchant:
+### Public & Management Endpoints
+* `GET /health`: Service health check.
+* `POST /merchants/signup`: Register merchant organization, hashes API key, links initial admin user.
 
-$$\text{row\_hash}_n = \text{SHA256}(\text{CanonicalJSON}(\text{payload}_n) \,\|\, \text{row\_hash}_{n-1})$$
+### Merchant Backend Route (Pre-Order)
+* `POST /transactions/check` *(Requires `X-API-Key`)*: Real-time risk evaluation and anomaly scoring.
 
-The genesis record for a merchant links to `GENESIS_HASH = "0" * 64`.
-
-The `verify_chain(merchant_id)` routine walks the complete historical audit log sequentially and re-computes every link. If any past record or hash is modified, verification immediately returns `False`.
-
----
-
-## 4. API Endpoints
-
-### 1. `POST /transactions/check`
-Evaluates an incoming payment transaction and returns a risk verdict.
-
-**Request Body:**
-```json
-{
-  "transaction_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-  "merchant_id": "a0000000-0000-0000-0000-000000000001",
-  "customer_id": "cust_12345",
-  "amount": 250.00,
-  "timestamp": "2026-08-30T12:00:00Z",
-  "merchant_category": "electronics",
-  "agent_type": "procurement_agent"
-}
-```
-
-**Response (HTTP 200):**
-```json
-{
-  "transaction_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-  "status": "approved",
-  "risk_score": 0.1245,
-  "reason": {
-    "decision": "approved",
-    "primary_driver": "normal_baseline",
-    "rule_name": null,
-    "rule_type": null,
-    "rule_reason": null,
-    "model_score": 0.1245,
-    "thresholds": {
-      "hold": 0.45,
-      "block": 0.70
-    },
-    "feature_drivers": []
-  },
-  "audit_log_id": "c1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c"
-}
-```
-
-### 2. `GET /audit-log?merchant_id=<UUID>&page=1&page_size=50`
-Retrieves paginated, immutable audit trail records for a merchant.
-
-### 3. `GET /health`
-Returns service health status and loaded model version.
-```json
-{
-  "status": "ok",
-  "model_version": "1.0.0",
-  "model_loaded": true
-}
-```
+### Dashboard & Human-in-the-Loop Routes *(Requires `Authorization: Bearer <JWT>`)*
+* `POST /transactions/{id}/confirm`: Approve or deny a held transaction.
+* `POST /kill-switch/request`: Request step-up OTP for kill switch.
+* `POST /kill-switch/confirm`: Confirm kill switch activation/deactivation with OTP.
+* `GET /kill-switch/status`: Query merchant kill switch state.
+* `GET /rules`: Retrieve merchant risk caps and category limits.
+* `PUT /rules` *(Admin only)*: Update merchant risk caps.
+* `POST /merchants/api-key/rotate` *(Admin only)*: Rotate API key and invalidate old hash.
+* `GET /audit-log`: Paginated, merchant-isolated cryptographic audit trail.
 
 ---
 
@@ -239,58 +205,34 @@ Returns service health status and loaded model version.
 ### Installation
 
 ```bash
-# Clone and navigate to project root
+# Clone repository
 cd PayFilter
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
-### Environment Configuration
+### Environment Variables (`.env`)
 
-Create a `.env` file in the project root (or `backend/.env`):
-
-```bash
-cp backend/.env.example .env
-```
-
-Populate `.env` with your Supabase credentials:
 ```env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-supabase-service-role-key
 SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_JWT_SECRET=your-supabase-jwt-secret
+HELD_TIMEOUT_SECONDS=120
+LARGE_AMOUNT_THRESHOLD=25000.0
 ```
 
-*(If using default/mock settings, PayFilter automatically uses its built-in in-memory database simulator for local offline testing).*
+### Run Live Phase 3 Demonstration
 
-### Running the FastAPI Server
+Run the automated demonstration script to see all Phase 3 flows in action:
 
 ```bash
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+python demo_phase3_workflow.py
 ```
 
----
-
-## 6. Running Demonstration & Automated Tests
-
-### Run Decision Tiers Demo Script
-To demonstrate all three decision tiers (`approved`, `held`, `blocked`), idempotency replay, and audit chain verification:
-
-```bash
-python demo_phase2_decisions.py
-```
-
-### Run Complete Test Suite
-Run the test suite across both Phase 2 backend and Phase 1 ML modules:
+### Run Full Test Suite
 
 ```bash
 pytest backend/tests ml/tests
 ```
-
-**Test Coverage Summary:**
-* `backend/tests/test_rules.py`: Hard cap, category limit, and velocity rule triggers.
-* `backend/tests/test_scorer.py`: Decision synthesis across all three tiers (approve, hold, block).
-* `backend/tests/test_idempotency.py`: Replay protection and identical cached decision returns.
-* `backend/tests/test_audit_chain.py`: Cryptographic hash chain creation and deliberate-tamper detection.
-* `backend/tests/test_rls_isolation.py`: Cross-merchant multi-tenant database isolation.
-* `backend/tests/test_api.py`: FastAPI end-to-end endpoint contracts and 422 input validation.

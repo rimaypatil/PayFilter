@@ -59,3 +59,33 @@ class RulesConfig(BaseModel):
     updated_at: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserRole(BaseModel):
+    """User role mapping entity."""
+
+    user_id: str
+    merchant_id: str
+    role: str  # 'admin' | 'analyst'
+    created_at: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuthenticatedUser(BaseModel):
+    """Context object representing the authenticated Supabase user."""
+
+    user_id: str
+    merchant_id: str
+    role: str  # 'admin' | 'analyst'
+    email: Optional[str] = None
+
+
+class KillSwitchState(BaseModel):
+    """Kill switch status for a merchant."""
+
+    merchant_id: str
+    is_active: bool = False
+    activated_at: Optional[str] = None
+    activated_by: Optional[str] = None
+    reason: Optional[str] = None
