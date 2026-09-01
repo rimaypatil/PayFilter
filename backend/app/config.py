@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     # Step-Up Auth settings
     STEP_UP_EXPIRY_SECONDS: int = 300
 
+    # Razorpay Test-Mode Integration
+    RAZORPAY_KEY_ID: Optional[str] = None
+    RAZORPAY_KEY_SECRET: Optional[str] = None
+    RAZORPAY_WEBHOOK_SECRET: Optional[str] = "mock_razorpay_webhook_secret_12345"
+    ALLOW_LIVE_KEYS: bool = False
+
+    # Claude AI Explanation Integration
+    CLAUDE_API_KEY: Optional[str] = None
+    CLAUDE_TIMEOUT_SECONDS: float = 5.0
+
     # Service configuration
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -46,8 +56,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    def validate_test_keys(self) -> None:
+        """Enforces that only Razorpay test-mode keys are permitted unless explicit override."""
+        if self.RAZORPAY_KEY_ID and self.RAZORPAY_KEY_ID.startswith("rzp_live_") and not self.ALLOW_LIVE_KEYS:
+            raise ValueError(
+                "SECURITY VIOLATION: Razorpay Live Key detected in test environment. "
+                "Only test-mode keys (rzp_test_...) are permitted unless ALLOW_LIVE_KEYS=true is explicitly set."
+            )
+
 
 @lru_cache()
 def get_settings() -> Settings:
-    """Returns cached application settings."""
-    return Settings()
+    """Returns cached application settings and validates test keys."""
+    settings = Settings()
+    settings.validate_test_keys()
+    return settings

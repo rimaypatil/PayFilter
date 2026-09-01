@@ -109,12 +109,15 @@ class TransactionsRepository:
         self,
         transaction_id: str,
         status: str,
-        reason: Optional[Dict[str, Any]] = None,
+        reason: Optional[Any] = None,
+        razorpay_order_id: Optional[str] = None,
     ) -> Optional[TransactionRecord]:
-        """Updates the status and reason of an existing transaction."""
+        """Updates the status, reason, and optional razorpay_order_id of an existing transaction."""
         update_payload: Dict[str, Any] = {"status": status}
         if reason is not None:
             update_payload["reason"] = reason
+        if razorpay_order_id is not None:
+            update_payload["razorpay_order_id"] = razorpay_order_id
 
         res = self.client.table("transactions").update(update_payload).eq("id", transaction_id).execute()
         if res.data and len(res.data) > 0:

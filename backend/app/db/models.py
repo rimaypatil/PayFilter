@@ -26,8 +26,9 @@ class TransactionRecord(BaseModel):
     agent_type: str
     status: str
     risk_score: float
-    reason: Dict[str, Any]
+    reason: Any
     model_version: str
+    razorpay_order_id: Optional[str] = None
     created_at: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

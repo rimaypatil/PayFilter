@@ -1,173 +1,89 @@
-# PayFilter Architecture Specification (Phase 1, Phase 2 & Phase 3)
+# PayFilter — System & Security Architecture
 
-## 1. System Overview
-
-PayFilter sits as a real-time risk assessment, anomaly detection, and human-in-the-loop decision platform between autonomous AI agents and the Razorpay Order Creation API.
-
-```text
-+---------------------+      +-----------------------------------------+      +-----------------------+
-|  AI Agent / Client  | ---> |          PayFilter Backend              | ---> |  Razorpay Order API   |
-| (Autonomous Action) |      | (FastAPI + Rules + ML + Audit Chain)    |      | (Phase 5 Integration) |
-+---------------------+      +-----------------------------------------+      +-----------------------+
-                                   ▲                     ▲
-                                   │ X-API-Key           │ JWT Auth & RBAC
-                                   │ (Merchant Backend)  │ (Dashboard / Analysts)
-                             +-------------------+  +-------------------+
-                             | Merchant Platform |  | Analyst Dashboard |
-                             |    (Autonomous)   |  | (Human-in-Loop)   |
-                             +-------------------+  +-------------------+
-                                                  │
-                                                  ▼
-                                     +-------------------------+
-                                     |   Supabase PostgreSQL   |
-                                     | (RLS + Append-Only Log) |
-                                     +-------------------------+
-```
+PayFilter is a real-time risk assessment, anomaly detection, cryptographic audit logging, and payment authorization firewall designed for autonomous AI agent transactions prior to order execution on Razorpay.
 
 ---
 
-## 2. End-to-End Decision, Confirmation & Kill Switch Lifecycle
+## 1. Complete Decision & Integration Pipeline (Phases 1–5)
 
 ```text
-                               POST /transactions/check
-                                (Requires X-API-Key)
-                                          │
-                                          ▼
-                         ┌─────────────────────────────────┐
-                         │   Verify Merchant API Key Hash  │
-                         └────────────────┬────────────────┘
-                                          │ Valid
-                                          ▼
-                         ┌─────────────────────────────────┐
-                         │   Check Kill Switch Status      │ ── (Active) ──► Instant Block (1.0)
-                         └────────────────┬────────────────┘
-                                          │ Normal
-                                          ▼
-                         ┌─────────────────────────────────┐
-                         │      Idempotency Check          │ ── (Duplicate) ──► Return Cached
-                         └────────────────┬────────────────┘
-                                          │ New
-                                          ▼
-                         ┌─────────────────────────────────┐
-                         │   Feature Extraction (10-D)     │
-                         └────────────────┬────────────────┘
-                                          │
-                                          ▼
-                         ┌─────────────────────────────────┐
-                         │   Deterministic Rules & Limits  │
-                         └────────────────┬────────────────┘
-                                          │
-                                          ▼
-                         ┌─────────────────────────────────┐
-                         │   Verified ML Isolation Forest  │
-                         └────────────────┬────────────────┘
-                                          │
-                                          ▼
-                         ┌─────────────────────────────────┐
-                         │      Unified Risk Scorer        │
-                         └────────────────┬────────────────┘
-                                          │
-               ┌──────────────────────────┼──────────────────────────┐
-               ▼                          ▼                          ▼
-          'approved'                   'held'                    'blocked'
-               │                          │                          │
-               │                          ▼                          │
-               │             ┌─────────────────────────┐             │
-               │             │  Human or Timeout Path  │             │
-               │             └────────────┬────────────┘             │
-               │                          │                          │
-               │         ┌────────────────┴────────────────┐         │
-               │         ▼                                 ▼         │
-               │   Human Confirm                    Timeout Handler  │
-               │   (Analyst JWT)                     (Older > 120s)  │
-               │         │                                 │         │
-               │    ┌────┴────┐                       ┌────┴────┐    │
-               │    ▼         ▼                       ▼         ▼    │
-               │ Approve     Deny                   > 25k    <= 25k  │
-               │    │         │                       │         │    │
-               │    ▼         ▼                       ▼         ▼    │
-               │ 'approved' 'blocked'             'blocked' 'approved'
-               │    │         │                       │         │    │
-               └───┬┴─────────┴───────────────────────┴─────────┴────┘
-                   │
-                   ▼
-        ┌────────────────────────────────────┐
-        │  Append Cryptographic Audit Entry  │
-        │    (SHA-256 Chained Hash Log)      │
-        └──────────────────┬─────────────────┘
+       [ Autonomous AI Agent / Checkout Request ]
+                           │
+                           ▼ (X-API-Key Header)
+            ┌─────────────────────────────┐
+            │   1. API Key Auth & RLS     │ ──► SHA-256 Hashed Lookup
+            └──────────────┬──────────────┘
                            │
                            ▼
-                 HTTP 200 Final Response
+            ┌─────────────────────────────┐
+            │   2. Emergency Kill Switch  │ ──► [Active?] ──► BLOCKED + Claude NL Reason
+            └──────────────┬──────────────┘
+                           │ (Inactive)
+                           ▼
+            ┌─────────────────────────────┐
+            │   3. Idempotency Check      │ ──► [Duplicate?] ──► Return Cached Decision
+            └──────────────┬──────────────┘
+                           │
+                           ▼
+            ┌─────────────────────────────┐
+            │  4. Leakage-Safe Features   │ ──► Rolling customer baseline (strictly < t_curr)
+            └──────────────┬──────────────┘
+                           │
+                           ▼
+            ┌─────────────────────────────┐
+            │  5. Deterministic Rules     │ ──► Velocity caps, max order cap, category limits
+            └──────────────┬──────────────┘
+                           │
+                           ▼
+            ┌─────────────────────────────┐
+            │  6. Scikit-Learn ML Model   │ ──► IsolationForest (SHA-256 integrity verified)
+            └──────────────┬──────────────┘
+                           │
+                           ▼
+            ┌─────────────────────────────┐
+            │  7. Decision Synthesizer    │
+            └──────────────┬──────────────┘
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+     [ APPROVED ]      [ HELD ]        [ BLOCKED ]
+          │                │                │
+          ▼                ▼                ▼
+   Create Razorpay    Analyst Queue     Claude NL Reason
+   Test-Mode Order    (Safe Timeout)    (Zero-PII)
+          │                │                │
+          └────────────────┼────────────────┘
+                           │
+                           ▼
+            ┌─────────────────────────────┐
+            │  8. Chained Cryptography    │ ──► SHA-256 Row Hash: H(prev_hash || row)
+            │      Audit Trail Log        │
+            └─────────────────────────────┘
 ```
 
 ---
 
-## 3. Database Schema & RLS Security
+## 2. Decision Tiers & Integrations
 
-### 3.1 Relational Schema
-
-```text
-+-------------------------------------------------------+
-|                       merchants                       |
-+-------------------------------------------------------+
-| id            : UUID (PK, gen_random_uuid())          |
-| name          : TEXT                                  |
-| api_key_hash  : TEXT                                  |
-| created_at    : TIMESTAMPTZ                           |
-+-------------------------------------------------------+
-          │                        │                 │
-          │ 1:N                    │ 1:N             │ 1:1
-          ▼                        ▼                 ▼
-+-------------------+    +-------------------+ +---------------------+
-|    user_roles     |    |   transactions    | |    rules_config     |
-+-------------------+    +-------------------+ +---------------------+
-| user_id (PK, FK)  |    | id (PK)           | | merchant_id (PK, FK)|
-| merchant_id (FK)  |    | merchant_id (FK)  | | max_amount_per_order|
-| role ('admin'/    |    | customer_id       | | max_txns_per_minute |
-|       'analyst')  |    | amount            | | category_limits     |
-| created_at        |    | status ('approved'| | created_at          |
-+-------------------+    |        /'held'/   | | updated_at          |
-                         |        'blocked') | +---------------------+
-                         | risk_score        |
-                         | reason (JSONB)    |
-                         | model_version     |
-                         | created_at        |
-                         +-------------------+
-                                   │
-                                   ▼ 1:N
-                         +-------------------+
-                         |     audit_log     |
-                         +-------------------+
-                         | id (PK)           |
-                         | transaction_id    |
-                         | merchant_id (FK)  |
-                         | action            |
-                         | actor (UUID/'sys')|
-                         | prev_hash         |
-                         | row_hash          |
-                         | created_at        |
-                         +-------------------+
-```
-
-### 3.2 Row-Level Security (RLS) with Supabase Auth
-Postgres RLS policies enforce tenant isolation via `auth.uid()` mapped through `user_roles`:
-```sql
-CREATE POLICY auth_transactions_select ON transactions
-    FOR SELECT TO authenticated
-    USING (merchant_id = (SELECT merchant_id FROM user_roles WHERE user_id = auth.uid()));
-```
+| Decision Tier | Anomaly Score Range / Condition | Phase 5 Integration Action | Next Step / Safe Resolution |
+|---|---|---|---|
+| **Approved** | Score &lt; 0.45 & passes rules | Calls `razorpay_client.create_order()` | Attaches `razorpay_order_id`, proceeds to payment gateway |
+| **Held** | 0.45 &le; Score &lt; 0.70 or soft rule | Calls `claude_client.explain_decision()` | Flagged queue for human confirmation or safe auto-timeout |
+| **Blocked** | Score &ge; 0.70 or hard limit breach | Calls `claude_client.explain_decision()` | Aborts checkout, records zero-PII plain-English explanation |
 
 ---
 
-## 4. Emergency Kill Switch Step-Up Architecture
+## 3. Core Security Principles
 
-```text
-1. Admin Requests Step-Up OTP
-   Admin ──► POST /kill-switch/request (Bearer JWT) ──► Backend generates 6-digit OTP (5m expiry)
-
-2. Admin Confirms Kill Switch
-   Admin ──► POST /kill-switch/confirm (Bearer JWT + OTP) ──► Backend validates OTP & activates kill switch
-
-3. Automatic Risk Engine Enforcement
-   Merchant ──► POST /transactions/check (X-API-Key) ──► Evaluator checks kill switch -> Returns status 'blocked'
-```
+1. **Zero-PII Data Minimization**:
+   - Claude API calls receive strictly numerical and categorical telemetry (amount, ratios, velocity, rule name, risk score).
+   - Customer names, card details, addresses, and personal identifiers are never included in prompts.
+2. **Failure-Tolerant Resilience**:
+   - Neither external Razorpay API errors nor Claude API timeouts can fail or roll back a PayFilter risk decision.
+   - Fallback explanations and audit logging ensure continuous 100% service uptime.
+3. **Test-Mode Safety Enforcement**:
+   - Configuration checks refuse Razorpay live-mode keys (`rzp_live_...`) to prevent accidental charges in staging/test environments.
+4. **Pre-Parse Webhook Signature Verification**:
+   - `POST /webhooks/razorpay` verifies constant-time HMAC SHA-256 signatures against raw request bytes before JSON decoding.
+5. **Cryptographic Tamper-Evident Audit Chain**:
+   - Every transaction score, human confirmation, timeout resolution, and webhook event is linked in an immutable SHA-256 hash chain ($H_n = \text{SHA256}(H_{n-1} \parallel \text{data})$).

@@ -13,3 +13,5 @@ joblib>=1.4.0,<1.5.0
 pyjwt>=2.8.0,<3.0.0
 cryptography>=42.0.0,<44.0.0
 apscheduler>=3.10.0,<4.0.0
+razorpay>=1.4.0,<2.0.0
+anthropic>=0.28.0,<1.0.0

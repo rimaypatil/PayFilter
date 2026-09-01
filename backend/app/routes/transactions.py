@@ -20,6 +20,9 @@ from backend.app.risk_engine.rules import RuleEngine
 from backend.app.risk_engine.scorer import RiskScorer
 from backend.app.schemas import TransactionCheckRequest, TransactionCheckResponse
 
+from backend.app.integrations.claude_client import ClaudeClient, get_claude_client
+from backend.app.integrations.razorpay_client import RazorpayClient, get_razorpay_client
+
 logger = logging.getLogger("payfilter.routes.transactions")
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
@@ -60,21 +63,26 @@ def check_transaction(
     merchants_repo: MerchantsRepository = Depends(get_merchants_repo),
     scorer: RiskScorer = Depends(get_risk_scorer),
     model_manager: MLModelManager = Depends(get_model_manager),
+    rzp_client: RazorpayClient = Depends(get_razorpay_client),
+    claude_client: ClaudeClient = Depends(get_claude_client),
 ) -> TransactionCheckResponse:
     """Evaluates an incoming AI-agent payment transaction.
 
     Workflow:
     1. Authenticate calling merchant via API key (X-API-Key).
     2. Enforce tenant ownership (request.merchant_id must match authenticated merchant).
-    3. Check Kill Switch: If active, block transaction immediately.
+    3. Check Kill Switch: If active, block transaction immediately and explain with Claude.
     4. Idempotency check: If transaction_id already exists, return stored decision.
     5. Customer history retrieval: Fetch past transactions strictly prior to t_curr.
     6. Feature extraction: Compute leakage-safe feature vector (features.py).
     7. Deterministic rules check: Evaluate merchant caps and velocity (rules.py).
     8. Scoring decision: Combine rules + ML anomaly model (scorer.py).
-    9. Database persistence: Write record to transactions table.
-    10. Audit log append: Write cryptographically hash-chained entry to audit_log.
-    11. Return structured decision.
+    9. Phase 5 Integrations:
+       - If approved: Create real test-mode Razorpay order (failure-tolerant).
+       - If held/blocked: Generate zero-PII plain-English explanation via Claude (timeout-tolerant).
+    10. Database persistence: Write record to transactions table.
+    11. Audit log append: Write cryptographically hash-chained entry to audit_log.
+    12. Return structured decision with razorpay_order_id and explanation.
     """
     # 1. Enforce matching tenant ownership
     if request.merchant_id and request.merchant_id != auth_merchant_id:
@@ -87,6 +95,12 @@ def check_transaction(
     kill_switch = merchants_repo.get_kill_switch_state(auth_merchant_id)
     if kill_switch.is_active:
         logger.warning(f"Transaction {request.transaction_id} BLOCKED: Kill switch is ACTIVE for merchant {auth_merchant_id}")
+        explanation = claude_client.explain_decision(
+            {"decision": "blocked", "primary_driver": "kill_switch_activated", "rule_name": "emergency_kill_switch"},
+            amount=request.amount,
+            category=request.merchant_category,
+            agent_type=request.agent_type,
+        )
         reason_blocked = {
             "decision": "blocked",
             "primary_driver": "kill_switch_activated",
@@ -96,6 +110,7 @@ def check_transaction(
             "model_score": 1.0,
             "thresholds": {"hold": 0.45, "block": 0.70},
             "feature_drivers": ["merchant_kill_switch_engaged"],
+            "explanation": explanation,
         }
 
         # Persist blocked transaction
@@ -109,6 +124,7 @@ def check_transaction(
             "risk_score": 1.0,
             "reason": reason_blocked,
             "model_version": model_manager.model_version,
+            "razorpay_order_id": None,
             "created_at": request.timestamp.isoformat(),
         }
         persisted_txn = txns_repo.create_transaction(txn_record_data)
@@ -128,6 +144,7 @@ def check_transaction(
             risk_score=1.0,
             reason=reason_blocked,
             audit_log_id=audit_entry.id or "",
+            razorpay_order_id=None,
         )
 
     # 3. Idempotency Check
@@ -146,6 +163,9 @@ def check_transaction(
 
     # 5. Extract Leakage-Safe Features
     txn_dict = {
+        "id": request.transaction_id,
+        "transaction_id": request.transaction_id,
+        "merchant_id": auth_merchant_id,
         "customer_id": request.customer_id,
         "amount": request.amount,
         "timestamp": request.timestamp,
@@ -168,7 +188,29 @@ def check_transaction(
         features=feature_vector,
     )
 
-    # 8. Persist Transaction Record
+    # 8. Phase 5 Integrations (Razorpay on Approve, Claude on Hold/Block)
+    razorpay_order_id: Optional[str] = None
+    if decision_status == "approved":
+        razorpay_order_id = rzp_client.create_order(txn_dict)
+        if not razorpay_order_id:
+            audit_repo.append_audit_entry(
+                merchant_id=auth_merchant_id,
+                action="razorpay_order_creation_failed",
+                transaction_id=request.transaction_id,
+                actor="system",
+                created_at=request.timestamp.isoformat(),
+            )
+    elif decision_status in ("held", "blocked"):
+        # Zero-PII natural language explanation via Claude
+        explanation = claude_client.explain_decision(
+            reason,
+            amount=request.amount,
+            category=request.merchant_category,
+            agent_type=request.agent_type,
+        )
+        reason["explanation"] = explanation
+
+    # 9. Persist Transaction Record
     txn_record_data = {
         "id": request.transaction_id,
         "merchant_id": auth_merchant_id,
@@ -179,11 +221,12 @@ def check_transaction(
         "risk_score": risk_score,
         "reason": reason,
         "model_version": model_manager.model_version,
+        "razorpay_order_id": razorpay_order_id,
         "created_at": request.timestamp.isoformat(),
     }
     persisted_txn = txns_repo.create_transaction(txn_record_data)
 
-    # 9. Append to Cryptographic Audit Chain
+    # 10. Append to Cryptographic Audit Chain
     audit_entry = audit_repo.append_audit_entry(
         merchant_id=auth_merchant_id,
         action=f"transaction_scored:{decision_status}",
@@ -192,13 +235,14 @@ def check_transaction(
         created_at=request.timestamp.isoformat(),
     )
 
-    # 10. Return Response
+    # 11. Return Response
     return TransactionCheckResponse(
         transaction_id=persisted_txn.id,
         status=persisted_txn.status,  # type: ignore
         risk_score=persisted_txn.risk_score,
         reason=persisted_txn.reason,
         audit_log_id=audit_entry.id or "",
+        razorpay_order_id=persisted_txn.razorpay_order_id,
     )
 
 

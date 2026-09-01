@@ -19,6 +19,7 @@ from backend.app.routes import (
     merchants,
     rules,
     transactions,
+    webhooks,
 )
 
 logging.basicConfig(
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     app.include_router(kill_switch.router)
     app.include_router(rules.router)
     app.include_router(audit.router)
+    app.include_router(webhooks.router)
 
     return app
 

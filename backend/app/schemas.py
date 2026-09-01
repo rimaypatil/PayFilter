@@ -54,8 +54,9 @@ class TransactionCheckResponse(BaseModel):
     transaction_id: str = Field(..., description="Transaction UUID")
     status: Literal["approved", "held", "blocked"] = Field(..., description="Scoring decision")
     risk_score: float = Field(..., ge=0.0, le=1.0, description="Normalized risk anomaly score [0.0 - 1.0]")
-    reason: Dict[str, Any] = Field(..., description="Machine-readable structured explanation")
+    reason: Any = Field(..., description="Structured explanation or human-readable Claude summary")
     audit_log_id: str = Field(..., description="UUID of the audit log record")
+    razorpay_order_id: Optional[str] = Field(default=None, description="Test-mode Razorpay order identifier for approved orders")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -71,6 +72,7 @@ class TransactionCheckResponse(BaseModel):
                     "thresholds": {"hold": 0.45, "block": 0.75},
                 },
                 "audit_log_id": "c1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c",
+                "razorpay_order_id": "order_MockRzp123456",
             }
         }
     )
