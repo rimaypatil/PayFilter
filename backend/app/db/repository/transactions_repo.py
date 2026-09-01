@@ -140,3 +140,25 @@ class TransactionsRepository:
         res = query.execute()
         rows = res.data if isinstance(res.data, list) else []
         return [TransactionRecord(**r) for r in rows]
+
+    def get_transactions(
+        self,
+        merchant_id: str,
+        status: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[List[TransactionRecord], int]:
+        """Fetches paginated transactions for a merchant with optional status filtering."""
+        query = (
+            self.client.table("transactions")
+            .select("*")
+            .eq("merchant_id", merchant_id)
+        )
+        if status:
+            query = query.eq("status", status)
+
+        query = query.order("created_at", desc=True).offset(offset).limit(limit)
+        res = query.execute()
+        rows = res.data if isinstance(res.data, list) else []
+        total = res.count if hasattr(res, "count") and res.count is not None else len(rows)
+        return [TransactionRecord(**r) for r in rows], total

@@ -200,3 +200,31 @@ def check_transaction(
         reason=persisted_txn.reason,
         audit_log_id=audit_entry.id or "",
     )
+
+
+@router.get(
+    "",
+    status_code=status.HTTP_200_OK,
+    summary="List transactions for authenticated merchant with optional status filter",
+)
+def list_transactions(
+    status_filter: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: Any = Depends(require_role("analyst")),
+    txns_repo: TransactionsRepository = Depends(get_txns_repo),
+):
+    """Retrieves paginated transactions for the logged in merchant."""
+    offset = (page - 1) * page_size
+    records, total = txns_repo.get_transactions(
+        merchant_id=current_user.merchant_id,
+        status=status_filter,
+        limit=page_size,
+        offset=offset,
+    )
+    return {
+        "items": [r.model_dump() for r in records],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }

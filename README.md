@@ -22,7 +22,7 @@ payfilter/
 │   │   └── model_metadata.json      # Cryptographic SHA-256 model hashes & metadata
 │   └── tests/                       # Phase 1 unit and integrity test suite
 │
-├── backend/                         # Phase 2 & Phase 3: Backend Risk Engine & Auth
+├── backend/                         # Phase 2 & 3: Backend Risk Engine & Auth
 │   ├── app/
 │   │   ├── main.py                  # FastAPI entrypoint, lifespan integrity checks, CORS
 │   │   ├── config.py                # Environment configuration & settings
@@ -38,8 +38,8 @@ payfilter/
 │   │   ├── routes/
 │   │   │   ├── health.py            # GET /health
 │   │   │   ├── merchants.py         # POST /merchants/signup, POST /merchants/api-key/rotate
-│   │   │   ├── transactions.py      # POST /transactions/check (Requires X-API-Key)
-│   │   │   ├── confirmations.py     # POST /transactions/{id}/confirm (Analyst/Admin JWT)
+│   │   │   ├── transactions.py      # POST /transactions/check, GET /transactions
+│   │   │   ├── confirmations.py     # POST /transactions/{id}/confirm
 │   │   │   ├── kill_switch.py       # POST /kill-switch/request, POST /kill-switch/confirm
 │   │   │   ├── rules.py             # GET /rules, PUT /rules (Admin JWT)
 │   │   │   └── audit.py             # GET /audit-log (Analyst/Admin JWT)
@@ -55,165 +55,77 @@ payfilter/
 │   │       ├── client.py            # Supabase Python client & test simulator
 │   │       ├── models.py            # Pydantic models (Merchant, UserRole, RulesConfig, etc.)
 │   │       ├── audit_chain.py       # SHA-256 hash chaining & verify_chain()
-│   │       ├── repository/
-│   │       │   ├── merchants_repo.py    # Merchant accounts, key rotation & user roles
-│   │       │   ├── transactions_repo.py # Transaction CRUD & timeout query
-│   │       │   ├── rules_repo.py        # Merchant limits & rule management
-│   │       │   └── audit_repo.py        # Append-only cryptographic audit trail
-│   │       └── migrations/
-│   │           ├── 0001_create_merchants.sql
-│   │           ├── 0002_create_transactions.sql
-│   │           ├── 0003_create_audit_log.sql
-│   │           ├── 0004_create_rules_config.sql
-│   │           ├── 0005_create_user_roles.sql    # Phase 3 RBAC schema
-│   │           ├── 0006_enable_rls.sql
-│   │           ├── 0007_rls_policies.sql
-│   │           ├── 0008_update_rls_for_auth.sql  # Phase 3 auth.uid()-based RLS policies
-│   │           └── seed_demo_data.sql
+│   │       ├── repository/          # Repository layer (merchants, transactions, rules, audit)
+│   │       └── migrations/          # PostgreSQL migrations (0001 to 0008)
 │   │
-│   ├── tests/
-│   │   ├── test_auth.py             # JWT signature, expiry & API key verification tests
-│   │   ├── test_permissions.py      # RBAC role authorization tests (admin vs analyst)
-│   │   ├── test_confirmations.py    # Human approval/denial & threshold adaptation tests
-│   │   ├── test_kill_switch.py      # Step-up OTP & emergency kill switch tests
-│   │   ├── test_timeout_handler.py  # Stale hold safe auto-resolution tests
-│   │   ├── test_rls_with_auth.py    # Multi-tenant isolation with real JWT user sessions
-│   │   ├── test_rules.py            # Deterministic rule evaluation tests
-│   │   ├── test_scorer.py           # 3-tier scoring synthesis tests
-│   │   ├── test_idempotency.py      # Duplicate request replay protection tests
-│   │   ├── test_audit_chain.py      # Cryptographic tamper detection tests
-│   │   └── test_api.py              # FastAPI end-to-end integration tests
-│   │
-│   ├── requirements.txt             # Backend dependencies
-│   └── .env.example                 # Environment variables template
+│   └── tests/                       # Complete backend unit and integration test suite
 │
-├── demo_phase3_workflow.py          # Complete Phase 3 end-to-end demonstration script
-├── requirements.txt                 # Project-wide pinned dependencies
+├── frontend/                        # Phase 4: Frontend Applications
+│   ├── landing/                     # Public Landing Page & Developer Docs (Vite + React)
+│   │   ├── src/
+│   │   │   ├── pages/
+│   │   │   │   ├── Home.jsx         # Value proposition, architecture flow diagram & stats
+│   │   │   │   ├── HowItWorks.jsx   # Plain-language 3-tier decision & anomaly vector guide
+│   │   │   │   ├── Docs.jsx         # Developer API integration guide (cURL & Python SDK)
+│   │   │   │   └── SignUp.jsx       # Merchant onboarding & single-reveal API key display
+│   │   │   ├── components/          # Navbar, Footer
+│   │   │   └── App.jsx
+│   │   └── package.json
+│   │
+│   └── dashboard/                   # Authenticated Merchant Console (Vite + React + Supabase Auth)
+│       ├── src/
+│       │   ├── pages/
+│       │   │   ├── Login.jsx        # Supabase Auth email/password login
+│       │   │   ├── Dashboard.jsx    # Real-time transaction feed + MetricsPanel telemetry
+│       │   │   ├── FlaggedQueue.jsx # Held transactions queue with live Approve/Deny buttons
+│       │   │   ├── AuditLog.jsx     # Read-only paginated cryptographic audit trail explorer
+│       │   │   ├── RulesSettings.jsx# Admin-only rules editor (max order caps & category limits)
+│       │   │   └── KillSwitch.jsx   # Admin-only 2-factor step-up emergency kill switch
+│       │   ├── components/          # ProtectedRoute, RoleGate, RiskBadge, TransactionCard, MetricsPanel
+│       │   ├── lib/                 # supabaseClient.js, api.js, useAuth.jsx
+│       │   └── App.jsx
+│       └── package.json
+│
+├── demo_phase3_workflow.py          # End-to-end backend workflow validation script
 ├── README.md                        # Documentation & setup guide
 └── ARCHITECTURE.md                  # Comprehensive system & flow architecture
 ```
 
 ---
 
-## 1. Authentication & Authorization (Phase 3)
+## 1. Quickstart & Local Setup
 
-### Supabase JWT Verification (`jwt_verify.py`)
-- Every human-facing route (`/confirmations`, `/rules`, `/kill-switch`, `/audit-log`) requires an `Authorization: Bearer <token>` header.
-- Validates the token's cryptographic signature, expiry (`exp`), audience (`authenticated`), and user identity claims.
-- Rejects expired or forged tokens with HTTP 401 Unauthorized.
-
-### Merchant Backend API Keys (`api_key_auth.py`)
-- Used by merchant backend services when calling `POST /transactions/check`.
-- API keys follow the prefix format `pf_live_<32-byte-secure-token>`.
-- Plaintext keys are **never stored or logged** — only their SHA-256 digests are stored in Postgres.
-- Evaluates the caller's key hash and automatically scopes the evaluation context to the verified `merchant_id`.
-
-### Role-Based Access Control (RBAC) (`permissions.py`)
-| Role | Privileges |
-| :--- | :--- |
-| **`analyst`** | View transactions, view audit log, review and confirm held transactions (`approve`/`deny`). |
-| **`admin`** | All analyst capabilities + edit rules configuration (`PUT /rules`), rotate API keys (`POST /merchants/api-key/rotate`), and execute emergency kill switch (`POST /kill-switch/confirm`). |
-
----
-
-## 2. Human Confirmation & Timeout Workflow
-
-```text
-                ┌──────────────────────────────────────┐
-                │   Transaction Scored: Status 'held'  │
-                └──────────────────┬───────────────────┘
-                                   │
-              ┌────────────────────┴────────────────────┐
-              │                                         │
-       [Human Review]                            [Timeout Reached]
-              │                                         │
-              ▼                                         ▼
-   Analyst/Admin Decision                  TimeoutHandler Evaluation
- (POST /transactions/{id}/confirm)             (Default: 120s)
-              │                                         │
-     ┌────────┴────────┐                       ┌────────┴────────┐
-     ▼                 ▼                       ▼                 ▼
- 'approve'          'deny'              Amount > 25,000    Amount <= 25,000
-     │                 │                       │                 │
-     ▼                 ▼                       ▼                 ▼
-'approved'         'blocked'               'blocked'         'approved'
-     │                 │                (Safe Default)    (Low-Risk Default)
-     └────────┬────────┘                       │                 │
-              │                                └────────┬────────┘
-              ▼                                         ▼
-   Audit Trail Appended                      Audit Trail Appended
- (action="confirmed_by_human")             (action="auto_resolved_timeout")
-              │                                         │
-              ▼                                         ▼
-   Adaptive Threshold Updated               Database Status Persisted
-```
-
-### 1. Human Confirmation Route (`POST /transactions/{id}/confirm`)
-- Analyst submits `{"decision": "approve" | "deny"}`.
-- Enforces that the transaction belongs to the caller's merchant and is currently in `held` status.
-- Updates database status to `approved` or `blocked`.
-- Appends cryptographic audit entry with `action="confirmed_by_human"`.
-- Adjusts the customer's risk baseline via Phase 1 `AdaptiveThresholdManager` (strictly adhering to the 10% drift cap).
-
-### 2. Background Timeout Handler (`timeout_handler.py`)
-- Scans for unreviewed held transactions older than `HELD_TIMEOUT_SECONDS` (default: 120s).
-- **High-value holds ($> 25,000$)**: Resolves safely to `blocked` (preventing silent high-value exposure).
-- **Standard holds ($\le 25,000$)**: Resolves safely to `approved` (preventing low-risk orders from stalling).
-- Appends cryptographic audit log with `action="auto_resolved_timeout"`, `actor="system_timeout"`.
-
----
-
-## 3. Step-Up Authenticated Emergency Kill Switch
-
-To protect merchants against compromised API keys or runaway agents, PayFilter includes an emergency kill switch requiring two-factor step-up verification:
-
-1. **Step-Up Request (`POST /kill-switch/request`)**:
-   - Requires authenticated `admin` JWT session.
-   - Generates a short-lived (5-minute) 6-digit numeric OTP stored server-side.
-2. **Step-Up Execution (`POST /kill-switch/confirm`)**:
-   - Requires both active `admin` session AND valid one-time OTP code.
-   - Sets merchant kill switch state to `active`.
-   - Appends audit entry `kill_switch_activated`.
-3. **Instant Risk Engine Enforcement**:
-   - While kill switch is active, all incoming `POST /transactions/check` requests for that merchant are instantly blocked with risk score `1.0` and primary driver `kill_switch_activated`.
-
----
-
-## 4. API Endpoints Reference
-
-### Public & Management Endpoints
-* `GET /health`: Service health check.
-* `POST /merchants/signup`: Register merchant organization, hashes API key, links initial admin user.
-
-### Merchant Backend Route (Pre-Order)
-* `POST /transactions/check` *(Requires `X-API-Key`)*: Real-time risk evaluation and anomaly scoring.
-
-### Dashboard & Human-in-the-Loop Routes *(Requires `Authorization: Bearer <JWT>`)*
-* `POST /transactions/{id}/confirm`: Approve or deny a held transaction.
-* `POST /kill-switch/request`: Request step-up OTP for kill switch.
-* `POST /kill-switch/confirm`: Confirm kill switch activation/deactivation with OTP.
-* `GET /kill-switch/status`: Query merchant kill switch state.
-* `GET /rules`: Retrieve merchant risk caps and category limits.
-* `PUT /rules` *(Admin only)*: Update merchant risk caps.
-* `POST /merchants/api-key/rotate` *(Admin only)*: Rotate API key and invalidate old hash.
-* `GET /audit-log`: Paginated, merchant-isolated cryptographic audit trail.
-
----
-
-## 5. Setup & Running Instructions
-
-### Installation
-
+### Step 1: Backend Setup
 ```bash
-# Clone repository
+# Clone and enter project directory
 cd PayFilter
 
-# Install dependencies
+# Install Python dependencies
 pip install -r backend/requirements.txt
+
+# Start FastAPI backend server (Runs on port 8000)
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Environment Variables (`.env`)
+### Step 2: Public Landing Page Setup (`frontend/landing`)
+```bash
+cd frontend/landing
+npm install
+npm run dev # Starts on http://localhost:3000
+```
 
+### Step 3: Merchant Dashboard Setup (`frontend/dashboard`)
+```bash
+cd frontend/dashboard
+npm install
+npm run dev # Starts on http://localhost:3001
+```
+
+---
+
+## 2. Environment Variables
+
+### Backend `.env`
 ```env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-supabase-service-role-key
@@ -223,16 +135,52 @@ HELD_TIMEOUT_SECONDS=120
 LARGE_AMOUNT_THRESHOLD=25000.0
 ```
 
-### Run Live Phase 3 Demonstration
-
-Run the automated demonstration script to see all Phase 3 flows in action:
-
-```bash
-python demo_phase3_workflow.py
+### Dashboard `.env` (`frontend/dashboard/.env`)
+```env
+VITE_BACKEND_URL=http://localhost:8000
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-### Run Full Test Suite
+---
 
+## 3. Manual End-to-End Walkthrough Checklist
+
+1. **Merchant Onboarding**:
+   - Open Landing Page at `http://localhost:3000/signup`.
+   - Enter organization name (e.g., "Acme Procurement").
+   - Click **Generate API Key & Register**.
+   - Copy the one-time revealed API key (`pf_live_...`).
+2. **Dashboard Login**:
+   - Navigate to Dashboard at `http://localhost:3001/login`.
+   - Sign in using your Supabase Auth user credentials (or 1-click demo button).
+   - Verify that unauthenticated visits to `/` or `/queue` redirect to `/login`.
+3. **Live Transaction Feed**:
+   - View recent transactions and real-time ML performance telemetry on `Dashboard.jsx`.
+4. **Human Review Queue**:
+   - Open `Flagged Queue` at `http://localhost:3001/queue`.
+   - Locate a `held` transaction card.
+   - Click **Approve** or **Deny**.
+   - Observe the card update/leave the queue immediately without requiring a page refresh.
+5. **Cryptographic Audit Explorer**:
+   - Open `Audit Trail` at `http://localhost:3001/audit`.
+   - Verify the confirmed action is recorded with a verified SHA-256 row hash.
+6. **Rules Configuration (Admin Only)**:
+   - Switch role to `Admin` and navigate to `http://localhost:3001/rules`.
+   - Update the Max Amount per Order cap and click **Save Rules Configuration**.
+   - Switch role to `Analyst` and verify the edit controls are gated.
+7. **Emergency Kill Switch Flow**:
+   - Navigate to `http://localhost:3001/kill-switch` as an Admin.
+   - Click **Freeze All Agent Payments** -> receive short-lived 6-digit OTP.
+   - Enter the OTP code and confirm freeze.
+   - Observe status flip to **ACTIVE (ALL PAYMENTS FROZEN)**.
+   - Any subsequent `POST /transactions/check` request is now immediately blocked by the risk engine.
+
+---
+
+## 4. Testing
+
+Run all backend unit and integration test suites:
 ```bash
 pytest backend/tests ml/tests
 ```
