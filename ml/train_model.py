@@ -189,7 +189,7 @@ def train_isolation_forest(
         max_samples="auto",
         contamination=contamination,
         random_state=random_state,
-        n_jobs=-1,
+        n_jobs=1,
     )
     model.fit(X_train[FEATURE_COLUMNS])
     return model

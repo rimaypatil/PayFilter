@@ -1,0 +1,14 @@
+-- Migration: 0006_enable_rls.sql
+-- Description: Enable Row-Level Security across all tenant-scoped tables.
+
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE rules_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rules_config FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchants FORCE ROW LEVEL SECURITY;
