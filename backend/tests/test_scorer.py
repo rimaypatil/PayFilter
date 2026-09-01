@@ -3,7 +3,7 @@
 from typing import Dict
 import pytest
 
-from threshold_manager import AdaptiveThresholdManager
+from ml.threshold_manager import AdaptiveThresholdManager
 from backend.app.risk_engine.scorer import RiskScorer
 from backend.app.schemas import RuleResult
 

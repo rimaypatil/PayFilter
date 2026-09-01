@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
-# Root proxy import from Phase 1
-from threshold_manager import AdaptiveThresholdManager
+# Canonical package import from ml/
+from ml.threshold_manager import AdaptiveThresholdManager
 from backend.app.risk_engine.model import MLModelManager, get_model_manager
 from backend.app.schemas import RuleResult
 

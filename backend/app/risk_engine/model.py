@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
-# Root proxy imports from Phase 1
-from features import FEATURE_COLUMNS
-from train_model import SecurityError, load_secure_model, verify_model_integrity
+# Canonical package imports from ml/
+from ml.features import FEATURE_COLUMNS
+from ml.train_model import SecurityError, load_secure_model, verify_model_integrity
 
 logger = logging.getLogger("payfilter.risk_engine.model")
 

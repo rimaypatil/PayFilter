@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 
 # Root proxy imports from Phase 1
-from features import extract_single_transaction_features
+from ml.features import extract_single_transaction_features
 from backend.app.db.models import RulesConfig
 from backend.app.db.repository.audit_repo import AuditRepository
 from backend.app.db.repository.merchants_repo import MerchantsRepository

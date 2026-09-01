@@ -7,8 +7,8 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from pydantic import BaseModel, Field
 
-# Root proxy import from Phase 1
-from threshold_manager import AdaptiveThresholdManager
+# Canonical package import from ml/
+from ml.threshold_manager import AdaptiveThresholdManager
 from backend.app.db.models import AuthenticatedUser, TransactionRecord
 from backend.app.db.repository.audit_repo import AuditRepository
 from backend.app.db.repository.transactions_repo import TransactionsRepository
