@@ -37,7 +37,7 @@ def setup_merchants():
 
     # Merchant A (Acme Electronics)
     merchant_a_id = f"merchant-a-{uuid.uuid4().hex[:8]}"
-    raw_key_a, _ = merchants_repo.create_merchant(merchant_a_id, "Acme Electronics")
+    _, raw_key_a = merchants_repo.create_merchant(name="Acme Electronics", merchant_id=merchant_a_id)
     user_a_admin = f"usr-admin-a-{uuid.uuid4().hex[:6]}"
     user_a_analyst = f"usr-analyst-a-{uuid.uuid4().hex[:6]}"
     merchants_repo.assign_user_role(user_a_admin, merchant_a_id, "admin")
@@ -48,7 +48,7 @@ def setup_merchants():
 
     # Merchant B (Nova Retail)
     merchant_b_id = f"merchant-b-{uuid.uuid4().hex[:8]}"
-    raw_key_b, _ = merchants_repo.create_merchant(merchant_b_id, "Nova Retail")
+    _, raw_key_b = merchants_repo.create_merchant(name="Nova Retail", merchant_id=merchant_b_id)
     user_b_analyst = f"usr-analyst-b-{uuid.uuid4().hex[:6]}"
     merchants_repo.assign_user_role(user_b_analyst, merchant_b_id, "analyst")
     token_b_analyst = create_mock_jwt(user_b_analyst, merchant_id=merchant_b_id, role="analyst")
@@ -213,7 +213,7 @@ def test_scenario_4_hold_timeout_auto_resolution(setup_merchants):
     db = get_supabase_client()
     txns_repo = TransactionsRepository(db)
     audit_repo = AuditRepository(db)
-    timeout_handler = TimeoutHandler(txns_repo=txns_repo, audit_repo=audit_repo)
+    timeout_handler = TimeoutHandler(transactions_repo=txns_repo, audit_repo=audit_repo)
 
     # Create stale large transaction (> 25,000)
     stale_large_id = str(uuid.uuid4())
@@ -233,7 +233,8 @@ def test_scenario_4_hold_timeout_auto_resolution(setup_merchants):
 
     # Trigger timeout handler
     resolved = timeout_handler.process_held_timeouts(merchant_id=merchant["id"])
-    assert stale_large_id in resolved
+    resolved_ids = [r["transaction_id"] for r in resolved]
+    assert stale_large_id in resolved_ids
 
     # Verify updated to blocked
     updated_record = txns_repo.get_transaction_by_id(stale_large_id)

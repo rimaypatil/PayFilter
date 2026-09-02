@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone, timedelta
 import logging
 from typing import Any, Dict, Optional
 from fastapi import HTTPException, status
@@ -11,6 +12,23 @@ from jwt.exceptions import ExpiredSignatureError, InvalidSignatureError, PyJWTEr
 from backend.app.config import get_settings
 
 logger = logging.getLogger("payfilter.auth.jwt")
+
+
+def create_mock_jwt(user_id: str, merchant_id: str = "default_merchant", role: str = "analyst", expires_in: int = 3600) -> str:
+    """Generates a valid signed JWT for testing."""
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user_id,
+        "aud": settings.SUPABASE_AUDIENCE,
+        "email": f"{user_id}@payfilter.io",
+        "merchant_id": merchant_id,
+        "role": role,
+        "app_metadata": {"merchant_id": merchant_id, "role": role},
+        "exp": now + timedelta(seconds=expires_in),
+        "iat": now,
+    }
+    return jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
 
 
 def verify_supabase_jwt(token: str) -> Dict[str, Any]:

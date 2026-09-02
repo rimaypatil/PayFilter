@@ -56,15 +56,19 @@ class ClaudeClient:
         # 1. Extract sanitized metrics strictly without PII
         decision = scorer_output.get("decision", "held")
         primary_driver = scorer_output.get("primary_driver", "anomaly_score")
-        rule_name = scorer_output.get("rule_triggered") or primary_driver
-        risk_score = scorer_output.get("risk_score") or scorer_output.get("model_score", 0.5)
+        rule_name = scorer_output.get("rule_triggered") or scorer_output.get("rule_name") or primary_driver
+        raw_score = scorer_output.get("risk_score")
+        if raw_score is None:
+            raw_score = scorer_output.get("model_score", 0.5)
+        risk_score_val = float(raw_score) if raw_score is not None else 0.0
+
         drivers = scorer_output.get("feature_drivers", [])
 
         # 2. Build sanitized context payload (PII-free)
         sanitized_context = {
             "decision": decision,
             "rule_name": rule_name,
-            "risk_score": round(float(risk_score), 4),
+            "risk_score": round(risk_score_val, 4),
             "amount_inr": amount,
             "category": category,
             "agent_type": agent_type,
@@ -103,7 +107,7 @@ class ClaudeClient:
                 )
 
         # 4. Deterministic Graceful Fallback (Failure-Tolerant)
-        return self._generate_fallback_explanation(decision, rule_name, amount, risk_score, primary_driver)
+        return self._generate_fallback_explanation(decision, rule_name, amount, risk_score_val, primary_driver)
 
     def _generate_fallback_explanation(
         self,

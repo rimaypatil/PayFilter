@@ -13,7 +13,7 @@ from backend.app.db.repository.audit_repo import AuditRepository
 from backend.app.db.repository.merchants_repo import MerchantsRepository
 from backend.app.db.repository.rules_repo import RulesRepository
 from backend.app.db.repository.transactions_repo import TransactionsRepository
-from backend.app.dependencies import require_api_key
+from backend.app.dependencies import require_api_key, require_role
 from backend.app.risk_engine.idempotency import IdempotencyChecker
 from backend.app.risk_engine.model import MLModelManager, get_model_manager
 from backend.app.risk_engine.rules import RuleEngine

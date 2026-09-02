@@ -126,6 +126,13 @@ class AdaptiveThresholdManager:
 
         return self.current_threshold
 
+    def update_threshold(self, is_fraud: bool) -> float:
+        """Convenience method to feed a single human confirmation decision."""
+        if is_fraud:
+            return self.update_from_feedback(approved_count=0, denied_count=1)
+        else:
+            return self.update_from_feedback(approved_count=1, denied_count=0)
+
     def apply_raw_target_update(self, proposed_target: float) -> float:
         """Applies a proposed target threshold while strictly enforcing maximum delta caps.
 

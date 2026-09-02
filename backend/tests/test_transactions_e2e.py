@@ -21,7 +21,7 @@ def setup_e2e_merchant():
     merchants_repo = MerchantsRepository(db_client)
 
     merchant_id = f"e2e-merchant-{uuid.uuid4().hex[:8]}"
-    raw_api_key, _ = merchants_repo.create_merchant(merchant_id=merchant_id, name="E2E Test Merchant")
+    merchant_obj, raw_api_key = merchants_repo.create_merchant(merchant_id=merchant_id, name="E2E Test Merchant")
     return merchant_id, raw_api_key
 
 

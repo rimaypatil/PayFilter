@@ -26,7 +26,7 @@ def test_single_update_cap_enforcement():
 
     # Max allowed change is 0.50 * 0.10 = 0.05 -> maximum new threshold = 0.55
     max_allowed = 0.50 * 1.10
-    assert new_t <= pytest.approx(max_allowed, abs=1e-5), f"Threshold jumped to {new_t}, exceeding 10% cap!"
+    assert new_t <= max_allowed + 1e-5, f"Threshold jumped to {new_t}, exceeding 10% cap!"
     assert new_t > 0.50
 
 
@@ -53,7 +53,7 @@ def test_denial_feedback_tightens_threshold():
     new_t = mgr.update_from_feedback(approved_count=0, denied_count=1000)
     assert new_t < 0.50
     # Must not drop by more than 10% in one update (minimum = 0.45)
-    assert new_t >= pytest.approx(0.45, abs=1e-5)
+    assert new_t >= 0.45 - 1e-5
 
 
 def test_state_persistence(tmp_path):
