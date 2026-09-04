@@ -1,10 +1,9 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Shield, ArrowRight, Terminal, BookOpen, Layers, UserPlus } from 'lucide-react'
+import { Shield, BookOpen, Layers, Key, ExternalLink, Cpu } from 'lucide-react'
 
 export default function Navbar() {
   const location = useLocation()
-
   const isActive = (path) => location.pathname === path
 
   return (
@@ -12,91 +11,102 @@ export default function Navbar() {
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      backdropFilter: 'blur(16px)',
-      background: 'rgba(9, 13, 22, 0.8)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      background: 'rgba(7, 10, 18, 0.85)',
       borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
     }}>
       <div style={{
-        maxWidth: '1200px',
+        maxWidth: '1280px',
         margin: '0 auto',
-        padding: '1rem 1.5rem',
+        padding: '0.9rem 1.5rem',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '1rem'
       }}>
-        {/* Logo */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(99, 102, 241, 0.4)'
-          }}>
-            <Shield size={20} color="#ffffff" />
-          </div>
-          <div>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
-              Pay<span style={{ color: '#818cf8' }}>Filter</span>
-            </span>
-            <span style={{
-              marginLeft: '0.5rem',
-              fontSize: '0.65rem',
-              fontWeight: 700,
-              padding: '0.15rem 0.4rem',
-              borderRadius: '9999px',
-              background: 'rgba(99, 102, 241, 0.15)',
-              color: '#a5b4fc',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
-              textTransform: 'uppercase'
+        {/* Brand & Status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 25px rgba(99, 102, 241, 0.5)',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
             }}>
-              Risk Engine
-            </span>
-          </div>
-        </Link>
+              <Shield size={22} color="#ffffff" />
+            </div>
+            <div>
+              <span style={{ fontSize: '1.35rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em' }}>
+                Pay<span style={{ color: '#818cf8' }}>Filter</span>
+              </span>
+            </div>
+          </Link>
 
-        {/* Navigation links */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          {/* Engine Status Badge */}
+          <div className="pulse-badge" style={{ display: 'none', md: 'inline-flex' }}>
+            <span className="pulse-dot" />
+            <span>AI Risk Firewall</span>
+          </div>
+        </div>
+
+        {/* Navigation Links */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Link to="/" style={{
             color: isActive('/') ? '#ffffff' : '#94a3b8',
-            fontWeight: isActive('/') ? 600 : 500,
-            fontSize: '0.9rem',
+            background: isActive('/') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+            border: isActive('/') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+            padding: '0.45rem 0.9rem',
+            borderRadius: '10px',
+            fontWeight: 600,
+            fontSize: '0.88rem',
             textDecoration: 'none',
             display: 'flex',
             alignItems: 'center',
             gap: '0.4rem',
-            transition: 'color 0.2s'
+            transition: 'all 0.2s'
           }}>
-            <Layers size={16} /> Home
+            <Layers size={15} /> Overview
           </Link>
 
           <Link to="/how-it-works" style={{
             color: isActive('/how-it-works') ? '#ffffff' : '#94a3b8',
-            fontWeight: isActive('/how-it-works') ? 600 : 500,
-            fontSize: '0.9rem',
+            background: isActive('/how-it-works') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+            border: isActive('/how-it-works') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+            padding: '0.45rem 0.9rem',
+            borderRadius: '10px',
+            fontWeight: 600,
+            fontSize: '0.88rem',
             textDecoration: 'none',
             display: 'flex',
             alignItems: 'center',
             gap: '0.4rem',
-            transition: 'color 0.2s'
+            transition: 'all 0.2s'
           }}>
-            <Shield size={16} /> How It Works
+            <Cpu size={15} /> Architecture
           </Link>
 
           <Link to="/docs" style={{
             color: isActive('/docs') ? '#ffffff' : '#94a3b8',
-            fontWeight: isActive('/docs') ? 600 : 500,
-            fontSize: '0.9rem',
+            background: isActive('/docs') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+            border: isActive('/docs') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+            padding: '0.45rem 0.9rem',
+            borderRadius: '10px',
+            fontWeight: 600,
+            fontSize: '0.88rem',
             textDecoration: 'none',
             display: 'flex',
             alignItems: 'center',
             gap: '0.4rem',
-            transition: 'color 0.2s'
+            transition: 'all 0.2s'
           }}>
-            <BookOpen size={16} /> API Docs
+            <BookOpen size={15} /> API Docs
           </Link>
         </nav>
 
@@ -107,38 +117,42 @@ export default function Navbar() {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              fontSize: '0.85rem',
+              fontSize: '0.86rem',
               fontWeight: 600,
               padding: '0.55rem 1rem',
-              borderRadius: '8px',
-              background: 'transparent',
+              borderRadius: '10px',
+              background: 'rgba(255, 255, 255, 0.05)',
               color: '#cbd5e1',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
               textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
               transition: 'all 0.2s'
             }}
           >
-            Dashboard Login
+            Dashboard Login <ExternalLink size={13} color="#94a3b8" />
           </a>
 
           <Link
             to="/signup"
             style={{
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              padding: '0.55rem 1.1rem',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              fontSize: '0.86rem',
+              fontWeight: 700,
+              padding: '0.55rem 1.15rem',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
               color: '#ffffff',
               textDecoration: 'none',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
-              boxShadow: '0 4px 15px rgba(99, 102, 241, 0.35)',
+              gap: '0.45rem',
+              boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
               transition: 'all 0.2s'
             }}
           >
-            <UserPlus size={15} /> Get API Key
+            <Key size={14} /> Get API Key
           </Link>
         </div>
       </div>
