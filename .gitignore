@@ -45,3 +45,12 @@ test_*.py.bak
 test_exec.py
 generate_data.js
 pip_list.txt
+# Environment & Secrets
+.env
+*.env
+.env.*
+backend/.env
+frontend/.env
+frontend/dashboard/.env
+frontend/landing/.env
+!.env.example
