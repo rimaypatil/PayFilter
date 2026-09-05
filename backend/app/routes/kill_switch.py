@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
-from typing import Optional
+from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -12,7 +12,12 @@ from backend.app.auth.step_up import generate_step_up_code, validate_and_consume
 from backend.app.db.models import AuthenticatedUser, KillSwitchState
 from backend.app.db.repository.audit_repo import AuditRepository
 from backend.app.db.repository.merchants_repo import MerchantsRepository
-from backend.app.dependencies import get_current_user, require_role
+from backend.app.dependencies import (
+    get_audit_repo,
+    get_current_user,
+    get_merchants_repo,
+    require_role,
+)
 
 logger = logging.getLogger("payfilter.routes.kill_switch")
 router = APIRouter(prefix="/kill-switch", tags=["Kill Switch"])
@@ -82,8 +87,8 @@ def request_kill_switch_code(
 def confirm_kill_switch(
     request: KillSwitchConfirmRequest,
     current_user: AuthenticatedUser = Depends(require_role("admin")),
-    merchants_repo: MerchantsRepository = Depends(MerchantsRepository),
-    audit_repo: AuditRepository = Depends(AuditRepository),
+    merchants_repo: MerchantsRepository = Depends(get_merchants_repo),
+    audit_repo: AuditRepository = Depends(get_audit_repo),
 ) -> KillSwitchConfirmResponse:
     """Executes the kill switch toggle only upon successful step-up code validation.
 
@@ -136,7 +141,7 @@ def confirm_kill_switch(
 )
 def get_kill_switch_status(
     current_user: AuthenticatedUser = Depends(require_role("analyst")),
-    merchants_repo: MerchantsRepository = Depends(MerchantsRepository),
+    merchants_repo: MerchantsRepository = Depends(get_merchants_repo),
 ) -> KillSwitchState:
     """Returns the kill switch status for the calling user's merchant."""
     return merchants_repo.get_kill_switch_state(current_user.merchant_id)

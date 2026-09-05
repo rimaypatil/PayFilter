@@ -44,6 +44,39 @@ code, pre {
   font-family: var(--font-mono);
 }
 
+/* Brand Logo Integration */
+.payfilter-brand-logo-full {
+  display: block;
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  background: transparent;
+  user-select: none;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.payfilter-brand-logo-icon {
+  display: none;
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  background: transparent;
+  user-select: none;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.payfilter-brand-link:hover .payfilter-brand-logo-full,
+.payfilter-brand-link:hover .payfilter-brand-logo-icon {
+  transform: scale(1.02);
+  filter: brightness(1.08);
+}
+@media (max-width: 640px) {
+  .payfilter-brand-logo-full {
+    display: none;
+  }
+  .payfilter-brand-logo-icon {
+    display: block;
+  }
+}
+
 /* Glassmorphic Containers */
 .glass-panel {
   background: var(--bg-card);

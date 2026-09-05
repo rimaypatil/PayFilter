@@ -43,24 +43,3 @@ VALUES (
     max_transactions_per_minute = EXCLUDED.max_transactions_per_minute,
     category_limits = EXCLUDED.category_limits;
 
--- 5. Seed Customer Historical Baselines (for feature extraction)
--- cust_demo_normal: consistent historical purchases of ~400-600 INR
-INSERT INTO transactions (id, merchant_id, customer_id, amount, agent_type, status, risk_score, reason, model_version, created_at)
-VALUES 
-    ('11111111-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'cust_demo_normal', 450.00, 'grocery_bot', 'approved', 0.12, '{"decision": "approved"}'::jsonb, 'v1.0.0', NOW() - INTERVAL '5 days'),
-    ('11111111-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'cust_demo_normal', 520.00, 'grocery_bot', 'approved', 0.14, '{"decision": "approved"}'::jsonb, 'v1.0.0', NOW() - INTERVAL '2 days'),
-    ('11111111-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'cust_demo_normal', 480.00, 'grocery_bot', 'approved', 0.11, '{"decision": "approved"}'::jsonb, 'v1.0.0', NOW() - INTERVAL '1 day')
-ON CONFLICT (id) DO NOTHING;
-
--- cust_demo_burst: primed with recent transactions to test velocity triggers
-INSERT INTO transactions (id, merchant_id, customer_id, amount, agent_type, status, risk_score, reason, model_version, created_at)
-VALUES 
-    ('22222222-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'cust_demo_burst', 1200.00, 'shopper_agent', 'approved', 0.20, '{"decision": "approved"}'::jsonb, 'v1.0.0', NOW() - INTERVAL '2 minutes'),
-    ('22222222-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'cust_demo_burst', 1200.00, 'shopper_agent', 'approved', 0.25, '{"decision": "approved"}'::jsonb, 'v1.0.0', NOW() - INTERVAL '1 minute')
-ON CONFLICT (id) DO NOTHING;
-
--- cust_demo_borderline: seeded with baseline that puts a 4,800 INR purchase in the hold band (0.45 <= score < 0.70)
-INSERT INTO transactions (id, merchant_id, customer_id, amount, agent_type, status, risk_score, reason, model_version, created_at)
-VALUES 
-    ('33333333-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'cust_demo_borderline', 1500.00, 'procurement_bot', 'approved', 0.22, '{"decision": "approved"}'::jsonb, 'v1.0.0', NOW() - INTERVAL '10 days')
-ON CONFLICT (id) DO NOTHING;

@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Shield, Lock, ArrowRight, AlertCircle } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Lock, ArrowRight, AlertCircle } from 'lucide-react'
 import { useAuth } from '../lib/useAuth'
 
 export default function Login() {
@@ -8,8 +8,18 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const { login } = useAuth()
+  const { login, session, merchantId, loading } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!loading && session) {
+      if (merchantId) {
+        navigate('/dashboard', { replace: true })
+      } else {
+        navigate('/organization-setup', { replace: true })
+      }
+    }
+  }, [loading, session, merchantId, navigate])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -19,21 +29,19 @@ export default function Login() {
     try {
       const result = await login(email, password)
       if (result.success) {
-        navigate('/')
+        if (result.hasMerchant) {
+          navigate('/dashboard')
+        } else {
+          navigate('/organization-setup')
+        }
       } else {
-        setError('Invalid credentials provided. Please check your email and password.')
+        setError(result.error || 'Invalid credentials provided. Please check your email and password.')
       }
     } catch (err) {
-      setError('Invalid credentials provided. Please check your email and password.')
+      setError(err.message || 'Invalid credentials provided. Please check your email and password.')
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const handleQuickLogin = (roleType) => {
-    const mockEmail = roleType === 'admin' ? 'admin@merchant.com' : 'analyst@merchant.com'
-    login(mockEmail, 'password123', roleType)
-    navigate('/')
   }
 
   return (
@@ -48,19 +56,18 @@ export default function Login() {
       <div className="glass-card" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem 2rem' }}>
         {/* Brand header */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1rem',
-            boxShadow: '0 0 20px rgba(99, 102, 241, 0.4)'
-          }}>
-            <Shield size={22} color="#ffffff" />
-          </div>
+          <img
+            src="/payfilter-logo.png"
+            alt="PayFilter"
+            style={{
+              height: '46px',
+              width: 'auto',
+              objectFit: 'contain',
+              margin: '0 auto 1.25rem',
+              display: 'block',
+              background: 'transparent'
+            }}
+          />
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc', marginBottom: '0.25rem' }}>
             Merchant Sign In
           </h1>
@@ -86,7 +93,7 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.25rem' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '0.35rem' }}>
               Work Email
@@ -156,49 +163,14 @@ export default function Login() {
             {submitting ? 'Authenticating...' : 'Sign In to Dashboard'}
             {!submitting && <ArrowRight size={15} />}
           </button>
-        </form>
 
-        {/* Demo Fast-Login Helpers */}
-        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', textAlign: 'center' }}>
-          <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginBottom: '0.75rem' }}>
-            Demo / Evaluation Quick Access
-          </span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => handleQuickLogin('admin')}
-              style={{
-                flex: 1,
-                padding: '0.5rem',
-                borderRadius: '6px',
-                background: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid rgba(99, 102, 241, 0.25)',
-                color: '#a5b4fc',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              Sign In as Admin
-            </button>
-
-            <button
-              onClick={() => handleQuickLogin('analyst')}
-              style={{
-                flex: 1,
-                padding: '0.5rem',
-                borderRadius: '6px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                color: '#6ee7b7',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              Sign In as Analyst
-            </button>
+          <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.82rem', color: '#94a3b8' }}>
+            New to PayFilter?{' '}
+            <Link to="/signup" style={{ color: '#818cf8', fontWeight: 600, textDecoration: 'none' }}>
+              Create an account
+            </Link>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   )

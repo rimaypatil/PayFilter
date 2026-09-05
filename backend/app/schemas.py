@@ -1,6 +1,6 @@
 """Pydantic schemas and contracts for PayFilter API."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -9,12 +9,12 @@ class TransactionCheckRequest(BaseModel):
     """Incoming transaction scoring payload."""
 
     transaction_id: str = Field(..., description="Unique UUID for this transaction")
-    merchant_id: str = Field(..., description="UUID of the merchant")
+    merchant_id: Optional[str] = Field(default=None, description="UUID of the merchant")
     customer_id: str = Field(..., min_length=1, description="Identifier of the customer/account")
     amount: float = Field(..., gt=0.0, description="Transaction amount (must be positive)")
-    timestamp: datetime = Field(..., description="ISO-8601 transaction timestamp")
-    merchant_category: str = Field(..., min_length=1, description="Business category of merchant")
-    agent_type: str = Field(..., min_length=1, description="AI agent type or initiator")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="ISO-8601 transaction timestamp")
+    merchant_category: str = Field(default="general", description="Business category of merchant")
+    agent_type: str = Field(default="autonomous_agent", description="AI agent type or initiator")
 
     model_config = ConfigDict(
         extra="forbid",  # Reject unexpected fields

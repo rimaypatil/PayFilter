@@ -59,6 +59,42 @@ code, pre {
   -webkit-text-fill-color: transparent;
 }
 
+/* Brand Logo Integration */
+.payfilter-dashboard-logo {
+  display: block;
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+  background: transparent;
+  user-select: none;
+  transition: transform 0.2s ease;
+}
+
+.payfilter-dashboard-icon {
+  display: block;
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  background: transparent;
+  user-select: none;
+  transition: transform 0.2s ease;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+.pulse-logo-icon {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

@@ -72,6 +72,31 @@ run_test_func("test_post_transaction_check_rejected_on_extra_fields", tapi.test_
 run_test_func("test_idempotent_duplicate_request", tapi.test_idempotent_duplicate_request, client)
 run_test_func("test_audit_log_endpoint_paginated", tapi.test_audit_log_endpoint_paginated, client)
 
+print("--- 7. Testing Auth & JWT Verification (backend.tests.test_auth) ---", flush=True)
+import backend.tests.test_auth as tauth
+run_test_func("test_missing_jwt_token_returns_401", tauth.test_missing_jwt_token_returns_401, client)
+run_test_func("test_expired_jwt_token_returns_401", tauth.test_expired_jwt_token_returns_401, client)
+run_test_func("test_tampered_jwt_signature_returns_401", tauth.test_tampered_jwt_signature_returns_401, client)
+run_test_func("test_missing_merchant_api_key_returns_401", tauth.test_missing_merchant_api_key_returns_401, client)
+run_test_func("test_invalid_merchant_api_key_returns_401", tauth.test_invalid_merchant_api_key_returns_401, client)
+
+print("--- 8. Testing API Key Management & Rotation (backend.tests.test_api_key_management) ---", flush=True)
+import backend.tests.test_api_key_management as takm
+run_test_func("test_get_api_key_status_admin", takm.test_get_api_key_status_admin, client)
+run_test_func("test_get_api_key_status_analyst", takm.test_get_api_key_status_analyst, client)
+run_test_func("test_analyst_cannot_rotate_api_key", takm.test_analyst_cannot_rotate_api_key, client)
+run_test_func("test_admin_rotate_api_key_lifecycle", takm.test_admin_rotate_api_key_lifecycle, client)
+run_test_func("test_unauthenticated_cannot_access_or_rotate", takm.test_unauthenticated_cannot_access_or_rotate, client)
+
+print("--- 9. Testing RBAC & Role Permissions (backend.tests.test_permissions) ---", flush=True)
+import backend.tests.test_permissions as tperm
+run_test_func("test_analyst_forbidden_from_updating_rules", tperm.test_analyst_forbidden_from_updating_rules, client)
+run_test_func("test_admin_can_update_rules", tperm.test_admin_can_update_rules, client)
+run_test_func("test_analyst_forbidden_from_rotating_api_key", tperm.test_analyst_forbidden_from_rotating_api_key, client)
+run_test_func("test_admin_can_rotate_api_key", tperm.test_admin_can_rotate_api_key, client)
+run_test_func("test_analyst_forbidden_from_requesting_kill_switch_otp", tperm.test_analyst_forbidden_from_requesting_kill_switch_otp, client)
+run_test_func("test_analyst_can_read_rules_and_audit_log", tperm.test_analyst_can_read_rules_and_audit_log, client)
+
 print(f"\n==========================================", flush=True)
 print(f"RESULTS: {passed} PASSED, {failed} FAILED", flush=True)
 print(f"==========================================", flush=True)

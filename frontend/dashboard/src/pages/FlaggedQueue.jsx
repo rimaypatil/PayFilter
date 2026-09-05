@@ -12,10 +12,11 @@ export default function FlaggedQueue({ onQueueChange }) {
   const [refreshing, setRefreshing] = useState(false)
 
   const loadQueue = async (isManual = false) => {
+    if (!authContext.merchantId) return
     if (isManual) setRefreshing(true)
     try {
       const data = await api.getTransactions(authContext, 'held', 1, 50)
-      const items = data.items || []
+      const items = data?.items || []
       setHeldTransactions(items)
       if (onQueueChange) onQueueChange(items.length)
     } catch (err) {
@@ -27,10 +28,14 @@ export default function FlaggedQueue({ onQueueChange }) {
   }
 
   useEffect(() => {
-    loadQueue()
-    const interval = setInterval(loadQueue, 4000)
-    return () => clearInterval(interval)
-  }, [authContext.merchantId])
+    if (!authContext.loading && authContext.merchantId) {
+      loadQueue()
+      const interval = setInterval(loadQueue, 4000)
+      return () => clearInterval(interval)
+    } else if (!authContext.loading && !authContext.merchantId) {
+      setLoading(false)
+    }
+  }, [authContext.merchantId, authContext.loading])
 
   const handleConfirmDecision = async (transactionId, decision) => {
     try {

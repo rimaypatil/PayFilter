@@ -3,7 +3,8 @@
 from functools import lru_cache
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,20 @@ class Settings(BaseSettings):
 
     # Supabase connection credentials
     SUPABASE_URL: str = "https://mock.supabase.co"
+
+    @field_validator("SUPABASE_URL", mode="before")
+    @classmethod
+    def normalize_supabase_url(cls, v: Any) -> str:
+        """Normalizes PostgreSQL connection pooler URIs into Supabase HTTPS project URLs."""
+        if isinstance(v, str):
+            val = v.strip()
+            if val.startswith(("postgresql://", "postgres://")):
+                import re
+                match = re.search(r"postgres(?:\.([a-z0-9]+))?:", val)
+                if match and match.group(1):
+                    return f"https://{match.group(1)}.supabase.co"
+            return val
+        return v
     SUPABASE_SERVICE_KEY: str = "mock-service-role-key"
     SUPABASE_ANON_KEY: str = "mock-anon-key"
     SUPABASE_JWT_SECRET: str = "mock-supabase-jwt-secret-key-for-test-signature-verification-12345"

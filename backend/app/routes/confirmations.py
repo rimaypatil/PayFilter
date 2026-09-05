@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from pydantic import BaseModel, Field
 
@@ -12,7 +12,12 @@ from ml.threshold_manager import AdaptiveThresholdManager
 from backend.app.db.models import AuthenticatedUser, TransactionRecord
 from backend.app.db.repository.audit_repo import AuditRepository
 from backend.app.db.repository.transactions_repo import TransactionsRepository
-from backend.app.dependencies import get_current_user, require_role
+from backend.app.dependencies import (
+    get_audit_repo,
+    get_current_user,
+    get_txns_repo,
+    require_role,
+)
 from backend.app.risk_engine.scorer import RiskScorer
 
 from backend.app.integrations.razorpay_client import RazorpayClient, get_razorpay_client
@@ -55,8 +60,8 @@ def confirm_held_transaction(
     id: str = Path(..., description="UUID of the transaction to confirm"),
     request: ConfirmationRequest = ...,
     current_user: AuthenticatedUser = Depends(require_role("analyst")),
-    txns_repo: TransactionsRepository = Depends(TransactionsRepository),
-    audit_repo: AuditRepository = Depends(AuditRepository),
+    txns_repo: TransactionsRepository = Depends(get_txns_repo),
+    audit_repo: AuditRepository = Depends(get_audit_repo),
     rzp_client: RazorpayClient = Depends(get_razorpay_client),
 ) -> ConfirmationResponse:
     """Resolves a transaction currently in 'held' state.

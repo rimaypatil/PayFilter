@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Shield, BookOpen, Layers, Key, ExternalLink, Cpu } from 'lucide-react'
+import { BookOpen, Layers, Key, ExternalLink, Cpu } from 'lucide-react'
 
 export default function Navbar() {
   const location = useLocation()
@@ -28,25 +28,17 @@ export default function Navbar() {
       }}>
         {/* Brand & Status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}>
-            <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 25px rgba(99, 102, 241, 0.5)',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
-            }}>
-              <Shield size={22} color="#ffffff" />
-            </div>
-            <div>
-              <span style={{ fontSize: '1.35rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em' }}>
-                Pay<span style={{ color: '#818cf8' }}>Filter</span>
-              </span>
-            </div>
+          <Link to="/" className="payfilter-brand-link" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} title="PayFilter Home">
+            <img
+              src="/payfilter-logo.png"
+              alt="PayFilter"
+              className="payfilter-brand-logo-full"
+            />
+            <img
+              src="/payfilter-icon.png"
+              alt="PayFilter"
+              className="payfilter-brand-logo-icon"
+            />
           </Link>
 
           {/* Engine Status Badge */}
@@ -56,104 +48,104 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Navigation Links */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* Navigation Links (Stitch Aligned) */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <Link to="/" style={{
             color: isActive('/') ? '#ffffff' : '#94a3b8',
-            background: isActive('/') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-            border: isActive('/') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+            background: isActive('/') ? 'rgba(168, 85, 247, 0.12)' : 'transparent',
+            border: isActive('/') ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid transparent',
             padding: '0.45rem 0.9rem',
-            borderRadius: '10px',
+            borderRadius: '9999px',
             fontWeight: 600,
-            fontSize: '0.88rem',
+            fontSize: '0.9rem',
             textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
             transition: 'all 0.2s'
           }}>
-            <Layers size={15} /> Overview
+            Product
           </Link>
 
           <Link to="/how-it-works" style={{
             color: isActive('/how-it-works') ? '#ffffff' : '#94a3b8',
-            background: isActive('/how-it-works') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-            border: isActive('/how-it-works') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+            background: isActive('/how-it-works') ? 'rgba(168, 85, 247, 0.12)' : 'transparent',
+            border: isActive('/how-it-works') ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid transparent',
             padding: '0.45rem 0.9rem',
-            borderRadius: '10px',
+            borderRadius: '9999px',
             fontWeight: 600,
-            fontSize: '0.88rem',
+            fontSize: '0.9rem',
             textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
             transition: 'all 0.2s'
           }}>
-            <Cpu size={15} /> Architecture
+            How It Works
           </Link>
 
           <Link to="/docs" style={{
             color: isActive('/docs') ? '#ffffff' : '#94a3b8',
-            background: isActive('/docs') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-            border: isActive('/docs') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+            background: isActive('/docs') ? 'rgba(168, 85, 247, 0.12)' : 'transparent',
+            border: isActive('/docs') ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid transparent',
             padding: '0.45rem 0.9rem',
-            borderRadius: '10px',
+            borderRadius: '9999px',
             fontWeight: 600,
-            fontSize: '0.88rem',
+            fontSize: '0.9rem',
             textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
             transition: 'all 0.2s'
           }}>
-            <BookOpen size={15} /> API Docs
+            Security
+          </Link>
+
+          <Link to="/signup" style={{
+            color: isActive('/signup') ? '#ffffff' : '#94a3b8',
+            background: isActive('/signup') ? 'rgba(168, 85, 247, 0.12)' : 'transparent',
+            border: isActive('/signup') ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid transparent',
+            padding: '0.45rem 0.9rem',
+            borderRadius: '9999px',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            textDecoration: 'none',
+            transition: 'all 0.2s'
+          }}>
+            Developers
           </Link>
         </nav>
 
-        {/* Action CTAs */}
+        {/* Action CTAs: Sign In & Sign Up */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <a
-            href="http://localhost:3001"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="http://localhost:3001/login"
             style={{
-              fontSize: '0.86rem',
+              fontSize: '0.85rem',
               fontWeight: 600,
-              padding: '0.55rem 1rem',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              color: '#cbd5e1',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
+              padding: '0.5rem 1.1rem',
+              borderRadius: '9999px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              color: '#f8fafc',
               textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              transition: 'all 0.2s'
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              transition: 'all 0.2s ease'
             }}
           >
-            Dashboard Login <ExternalLink size={13} color="#94a3b8" />
+            Sign In
           </a>
 
-          <Link
-            to="/signup"
+          <a
+            href="http://localhost:3001/signup"
             style={{
-              fontSize: '0.86rem',
+              fontSize: '0.85rem',
               fontWeight: 700,
-              padding: '0.55rem 1.15rem',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              padding: '0.55rem 1.25rem',
+              borderRadius: '9999px',
+              background: 'linear-gradient(135deg, #7c3aed 0%, #9333ea 50%, #c084fc 100%)',
               color: '#ffffff',
               textDecoration: 'none',
               display: 'flex',
               alignItems: 'center',
               gap: '0.45rem',
-              boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              transition: 'all 0.2s'
+              boxShadow: '0 0 20px rgba(168, 85, 247, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              transition: 'all 0.2s ease'
             }}
           >
-            <Key size={14} /> Get API Key
-          </Link>
+            Sign Up
+          </a>
         </div>
       </div>
     </header>

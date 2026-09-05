@@ -18,19 +18,17 @@ export default function Footer() {
         }}>
           {/* Brand */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
-              <div style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Shield size={16} color="#ffffff" />
-              </div>
-              <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>PayFilter</span>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+              <img
+                src="/payfilter-logo.png"
+                alt="PayFilter"
+                style={{
+                  height: '34px',
+                  width: 'auto',
+                  objectFit: 'contain',
+                  background: 'transparent'
+                }}
+              />
             </div>
             <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: '1.6' }}>
               Real-time payment firewall & anomaly detection layer designed for autonomous AI agents prior to Razorpay order creation.

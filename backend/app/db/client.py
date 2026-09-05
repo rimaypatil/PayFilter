@@ -224,22 +224,26 @@ def get_supabase_client(api_key: Optional[str] = None) -> Any:
     global _supabase_client
     settings = get_settings()
 
+    # If an in-memory client was explicitly set (e.g. by reset_in_memory_db in tests)
+    if isinstance(_supabase_client, InMemorySupabaseClient):
+        return _supabase_client
+
     # Use in-memory client if mock or placeholder URL configured
     if "mock" in settings.SUPABASE_URL or "your-project" in settings.SUPABASE_URL:
         if _supabase_client is None or not isinstance(_supabase_client, InMemorySupabaseClient):
             _supabase_client = InMemorySupabaseClient()
         return _supabase_client
 
-    try:
-        from supabase import create_client, Client
-
-        key = api_key or settings.SUPABASE_SERVICE_KEY
-        return create_client(settings.SUPABASE_URL, key)
-    except Exception as e:
-        logger.warning(f"Falling back to in-memory store due to Supabase connection error: {e}")
-        if _supabase_client is None or not isinstance(_supabase_client, InMemorySupabaseClient):
-            _supabase_client = InMemorySupabaseClient()
+    if api_key is None and _supabase_client is not None and not isinstance(_supabase_client, InMemorySupabaseClient):
         return _supabase_client
+
+    from supabase import create_client
+
+    key = api_key or settings.SUPABASE_SERVICE_KEY
+    client = create_client(settings.SUPABASE_URL, key)
+    if api_key is None:
+        _supabase_client = client
+    return client
 
 
 def reset_in_memory_db() -> InMemorySupabaseClient:

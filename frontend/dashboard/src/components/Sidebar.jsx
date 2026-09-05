@@ -6,8 +6,8 @@ import {
   FileText,
   Sliders,
   Power,
+  Key,
   LogOut,
-  Shield,
   User,
   UserCheck
 } from 'lucide-react'
@@ -16,7 +16,7 @@ import RoleGate from './RoleGate'
 
 export default function Sidebar({ heldCount = 0 }) {
   const location = useLocation()
-  const { user, role, merchantId, logout, setRole } = useAuth()
+  const { user, role, merchantId, logout, setRole, merchantName, loading } = useAuth()
 
   const isActive = (path) => location.pathname === path
 
@@ -46,23 +46,16 @@ export default function Sidebar({ heldCount = 0 }) {
     }}>
       <div>
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0 0.5rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Shield size={18} color="#ffffff" />
-          </div>
-          <div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffffff' }}>
-              Pay<span style={{ color: '#818cf8' }}>Filter</span>
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Merchant Console</div>
+        <div style={{ padding: '0 0.5rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }} title="PayFilter Console">
+            <img
+              src="/payfilter-logo.png"
+              alt="PayFilter"
+              className="payfilter-dashboard-logo"
+            />
+          </Link>
+          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.4rem', paddingLeft: '0.2rem', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
+            Merchant Console
           </div>
         </div>
 
@@ -149,6 +142,33 @@ export default function Sidebar({ heldCount = 0 }) {
             })}
           </nav>
         </RoleGate>
+
+        {/* Developer Integration */}
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 0.5rem 0.5rem', marginTop: '1.25rem' }}>
+          Developer
+        </div>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <Link
+            to="/api-keys"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              padding: '0.65rem 0.85rem',
+              borderRadius: '8px',
+              background: isActive('/api-keys') ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+              color: isActive('/api-keys') ? '#818cf8' : '#94a3b8',
+              fontWeight: isActive('/api-keys') ? 700 : 500,
+              fontSize: '0.88rem',
+              textDecoration: 'none',
+              border: isActive('/api-keys') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+              transition: 'all 0.15s'
+            }}
+          >
+            <Key size={17} />
+            API Keys
+          </Link>
+        </nav>
       </div>
 
       {/* User Info & Role Switcher */}
@@ -158,8 +178,8 @@ export default function Sidebar({ heldCount = 0 }) {
             <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
               {user?.email || 'operator@acme.com'}
             </div>
-            <div style={{ fontSize: '0.7rem', color: role === 'admin' ? '#818cf8' : '#34d399', fontWeight: 600 }}>
-              Role: {role.toUpperCase()}
+            <div style={{ fontSize: '0.7rem', color: role === 'admin' ? '#818cf8' : role === 'analyst' ? '#34d399' : '#94a3b8', fontWeight: 600 }}>
+              Role: {role ? String(role).toUpperCase() : (loading ? 'INITIALIZING...' : 'UNASSIGNED')}
             </div>
           </div>
 
@@ -179,48 +199,21 @@ export default function Sidebar({ heldCount = 0 }) {
           </button>
         </div>
 
-        {/* Role Demo Toggle */}
+        {/* Backend-verified Tenant Status */}
         <div style={{
           background: 'rgba(0,0,0,0.4)',
           border: '1px solid var(--border-subtle)',
           borderRadius: '6px',
-          padding: '0.35rem',
+          padding: '0.45rem 0.6rem',
           display: 'flex',
-          gap: '0.25rem'
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.72rem'
         }}>
-          <button
-            onClick={() => setRole('admin')}
-            style={{
-              flex: 1,
-              padding: '0.25rem',
-              borderRadius: '4px',
-              border: 'none',
-              background: role === 'admin' ? '#6366f1' : 'transparent',
-              color: role === 'admin' ? '#ffffff' : '#94a3b8',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            Admin
-          </button>
-
-          <button
-            onClick={() => setRole('analyst')}
-            style={{
-              flex: 1,
-              padding: '0.25rem',
-              borderRadius: '4px',
-              border: 'none',
-              background: role === 'analyst' ? '#10b981' : 'transparent',
-              color: role === 'analyst' ? '#ffffff' : '#94a3b8',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            Analyst
-          </button>
+          <span style={{ color: '#64748b', fontWeight: 600 }}>Tenant:</span>
+          <span style={{ color: '#cbd5e1', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>
+            {merchantName || (loading ? 'Loading...' : 'None')}
+          </span>
         </div>
       </div>
     </aside>

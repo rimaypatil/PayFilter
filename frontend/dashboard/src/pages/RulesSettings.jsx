@@ -18,19 +18,24 @@ export default function RulesSettings() {
 
   useEffect(() => {
     async function fetchCurrentRules() {
+      if (!authContext.merchantId) return
       try {
         const rules = await api.getRules(authContext)
-        setMaxAmount(rules.max_amount_per_order || 50000.0)
-        setMaxVelocity(rules.max_transactions_per_minute || 5)
-        setCategoryLimits(rules.category_limits || {})
+        setMaxAmount(rules?.max_amount_per_order || 50000.0)
+        setMaxVelocity(rules?.max_transactions_per_minute || 5)
+        setCategoryLimits(rules?.category_limits || {})
       } catch (err) {
         console.error('Failed to load rules:', err)
       } finally {
         setLoading(false)
       }
     }
-    fetchCurrentRules()
-  }, [authContext.merchantId])
+    if (!authContext.loading && authContext.merchantId) {
+      fetchCurrentRules()
+    } else if (!authContext.loading && !authContext.merchantId) {
+      setLoading(false)
+    }
+  }, [authContext.merchantId, authContext.loading])
 
   const handleSave = async (e) => {
     e.preventDefault()

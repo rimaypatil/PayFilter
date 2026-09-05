@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from backend.app.db.repository.audit_repo import AuditRepository
+from backend.app.dependencies import get_audit_repo
 from backend.app.integrations.razorpay_client import RazorpayClient, get_razorpay_client
 
 logger = logging.getLogger("payfilter.routes.webhooks")
@@ -23,7 +24,7 @@ async def handle_razorpay_webhook(
     request: Request,
     x_razorpay_signature: Optional[str] = Header(None, alias="X-Razorpay-Signature"),
     rzp_client: RazorpayClient = Depends(get_razorpay_client),
-    audit_repo: AuditRepository = Depends(AuditRepository),
+    audit_repo: AuditRepository = Depends(get_audit_repo),
 ) -> Dict[str, Any]:
     """Processes incoming payment status updates from Razorpay.
 

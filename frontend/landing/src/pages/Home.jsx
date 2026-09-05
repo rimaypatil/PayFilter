@@ -75,49 +75,78 @@ export default function Home() {
       <div className="glow-orb-rose" style={{ top: '2200px', left: '10%' }} />
 
       {/* HERO SECTION */}
-      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '5.5rem 1.5rem 4rem', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-        <div className="pulse-badge" style={{ marginBottom: '1.75rem' }}>
-          <span className="pulse-dot" />
-          <span>Built for Autonomous AI Agent Checkout Workflows</span>
+      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.25rem 1.5rem 3.5rem', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+        {/* GLOWING ORBITAL BADGE */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          margin: '0 auto 1.25rem'
+        }}>
+          <img
+            src="/risk_layer_badge.png"
+            alt="The Risk Layer for AI-Initiated Payments"
+            style={{
+              maxWidth: '540px',
+              width: '90%',
+              height: 'auto',
+              display: 'block',
+              mixBlendMode: 'screen',
+              filter: 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.45))'
+            }}
+          />
+        </div>
+        {/* 3D PIPELINE SHOWCASE */}
+        <div style={{
+          position: 'relative',
+          maxWidth: '1100px',
+          margin: '0 auto 2.5rem',
+          borderRadius: '1.25rem',
+          overflow: 'hidden',
+          border: '1px solid rgba(168, 85, 247, 0.25)',
+          boxShadow: '0 0 50px rgba(168, 85, 247, 0.15), 0 20px 40px rgba(0, 0, 0, 0.6)',
+          background: 'radial-gradient(ellipse at center, rgba(168, 85, 247, 0.08) 0%, rgba(7, 10, 18, 0.95) 75%)'
+        }}>
+          <img
+            src="/stitch_landing.png"
+            alt="PayFilter Risk Decision Layer: Let AI Move Money. Not Risk."
+            style={{
+              width: '100%',
+              height: 'auto',
+              display: 'block',
+              objectFit: 'contain'
+            }}
+          />
         </div>
 
-        <h1 style={{
-          fontSize: 'clamp(2.6rem, 5.5vw, 4.75rem)',
-          fontWeight: 900,
-          lineHeight: 1.12,
-          letterSpacing: '-0.035em',
-          marginBottom: '1.75rem',
-          maxWidth: '1050px',
-          margin: '0 auto 1.75rem'
-        }}>
-          Autonomous Agents Need a <br />
-          <span className="gradient-text">Pre-Payment Firewall</span>
-        </h1>
-
-        <p style={{
-          maxWidth: '780px',
-          margin: '0 auto 2.75rem',
-          fontSize: '1.18rem',
-          color: '#94a3b8',
-          lineHeight: 1.65,
-          fontWeight: 400
-        }}>
-          PayFilter intercepts autonomous AI agent transactions before Razorpay order creation.
-          Evaluating burst velocity, ticket size anomalies, and novel categories using leakage-safe ML and immutable cryptographic audit trails.
-        </p>
-
         {/* CTA Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '4rem' }}>
-          <Link to="/signup" className="btn-primary">
-            Create Merchant API Key <ArrowRight size={18} />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '4.5rem' }}>
+          <Link to="/signup" className="btn-primary" style={{
+            background: 'linear-gradient(135deg, #7c3aed 0%, #9333ea 50%, #c084fc 100%)',
+            boxShadow: '0 0 25px rgba(168, 85, 247, 0.5)'
+          }}>
+            Get Started <ArrowRight size={18} />
           </Link>
+
+          <a
+            href="http://localhost:3001"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary"
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(168, 85, 247, 0.3)'
+            }}
+          >
+            Open Dashboard <ExternalLink size={15} color="#c084fc" />
+          </a>
 
           <Link to="/how-it-works" className="btn-secondary">
             <Cpu size={17} /> How It Works
           </Link>
 
           <Link to="/docs" className="btn-secondary" style={{ background: 'transparent' }}>
-            <Terminal size={17} /> Interactive API Docs
+            <Terminal size={17} /> Developers & API
           </Link>
         </div>
 

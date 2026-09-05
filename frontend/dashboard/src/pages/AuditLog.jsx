@@ -13,11 +13,12 @@ export default function AuditLog() {
   const [refreshing, setRefreshing] = useState(false)
 
   const loadAuditLog = async (isManual = false) => {
+    if (!authContext.merchantId) return
     if (isManual) setRefreshing(true)
     try {
       const data = await api.getAuditLog(authContext, page, pageSize)
-      setLogs(data.items || [])
-      setTotal(data.total || 0)
+      setLogs(data?.items || [])
+      setTotal(data?.total || 0)
     } catch (err) {
       console.error('Failed to load audit log:', err)
     } finally {
@@ -27,8 +28,12 @@ export default function AuditLog() {
   }
 
   useEffect(() => {
-    loadAuditLog()
-  }, [page, authContext.merchantId])
+    if (!authContext.loading && authContext.merchantId) {
+      loadAuditLog()
+    } else if (!authContext.loading && !authContext.merchantId) {
+      setLoading(false)
+    }
+  }, [page, authContext.merchantId, authContext.loading])
 
   const totalPages = Math.ceil(total / pageSize) || 1
 

@@ -7,6 +7,9 @@ from backend.app.db.client import get_supabase_client
 from backend.app.db.models import RulesConfig
 
 
+_rules_cache: Dict[str, RulesConfig] = {}
+
+
 class RulesRepository:
     """Provides access to merchant-configured rules limits."""
 
@@ -28,6 +31,12 @@ class RulesRepository:
         except Exception:
             pass
 
+        if hasattr(self.client, "db_store"):
+            return RulesConfig(merchant_id=merchant_id)
+
+        if merchant_id in _rules_cache:
+            return _rules_cache[merchant_id]
+
         # Return default fallback rules config if none exists in DB
         return RulesConfig(merchant_id=merchant_id)
 
@@ -45,9 +54,27 @@ class RulesRepository:
             "max_transactions_per_minute": max_transactions_per_minute,
             "category_limits": category_limits or {},
         }
-        res = self.client.table("rules_config").insert(payload)
-        item = res.data[0] if isinstance(res.data, list) else res.data
-        return RulesConfig(**item)
+        if hasattr(self.client, "db_store"):
+            res = self.client.table("rules_config").insert(payload)
+            item = res.data[0] if isinstance(res.data, list) else res.data
+            return RulesConfig(**item)
+
+        config_obj = RulesConfig(**payload)
+        try:
+            res = self.client.table("rules_config").upsert(payload).execute()
+            item = res.data[0] if (res.data and isinstance(res.data, list)) else res.data
+            if item:
+                config_obj = RulesConfig(**item)
+        except Exception:
+            try:
+                res = self.client.table("rules_config").insert(payload).execute()
+                item = res.data[0] if (res.data and isinstance(res.data, list)) else res.data
+                if item:
+                    config_obj = RulesConfig(**item)
+            except Exception:
+                pass
+        _rules_cache[merchant_id] = config_obj
+        return config_obj
 
     def update_rules_config(
         self,

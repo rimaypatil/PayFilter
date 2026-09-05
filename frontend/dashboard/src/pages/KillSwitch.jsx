@@ -17,15 +17,18 @@ export default function KillSwitch() {
 
   useEffect(() => {
     async function checkCurrentStatus() {
+      if (!authContext.merchantId) return
       try {
         const state = await api.getKillSwitchStatus(authContext)
-        setIsActive(state.is_active)
+        setIsActive(Boolean(state?.is_active))
       } catch (e) {
         console.error('Failed to get kill switch state:', e)
       }
     }
-    checkCurrentStatus()
-  }, [authContext.merchantId])
+    if (!authContext.loading && authContext.merchantId) {
+      checkCurrentStatus()
+    }
+  }, [authContext.merchantId, authContext.loading])
 
   const handleRequestStepUp = async () => {
     setLoadingRequest(true)

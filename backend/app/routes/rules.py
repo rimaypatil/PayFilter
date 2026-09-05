@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.app.db.models import AuthenticatedUser, RulesConfig
 from backend.app.db.repository.audit_repo import AuditRepository
 from backend.app.db.repository.rules_repo import RulesRepository
-from backend.app.dependencies import get_current_user, require_role
+from backend.app.dependencies import (
+    get_audit_repo,
+    get_current_user,
+    get_rules_repo,
+    require_role,
+)
 
 logger = logging.getLogger("payfilter.routes.rules")
 router = APIRouter(prefix="/rules", tags=["Rules"])
@@ -38,7 +43,7 @@ class UpdateRulesRequest(BaseModel):
 )
 def get_merchant_rules(
     current_user: AuthenticatedUser = Depends(require_role("analyst")),
-    rules_repo: RulesRepository = Depends(RulesRepository),
+    rules_repo: RulesRepository = Depends(get_rules_repo),
 ) -> RulesConfig:
     """Returns the rules config for the calling user's merchant.
 
@@ -56,8 +61,8 @@ def get_merchant_rules(
 def update_merchant_rules(
     request: UpdateRulesRequest,
     current_user: AuthenticatedUser = Depends(require_role("admin")),
-    rules_repo: RulesRepository = Depends(RulesRepository),
-    audit_repo: AuditRepository = Depends(AuditRepository),
+    rules_repo: RulesRepository = Depends(get_rules_repo),
+    audit_repo: AuditRepository = Depends(get_audit_repo),
 ) -> RulesConfig:
     """Updates merchant threshold limits and records audit log.
 

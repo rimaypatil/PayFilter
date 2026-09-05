@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional
 import pandas as pd
 from backend.app.db.client import get_supabase_client
 from backend.app.db.models import TransactionRecord
+
+
+logger = logging.getLogger("payfilter.db.transactions")
 
 
 class TransactionsRepository:
@@ -27,15 +31,63 @@ class TransactionsRepository:
             )
             if res.data:
                 return TransactionRecord(**res.data)
-        except Exception:
-            return None
+        except Exception as e:
+            logger.debug(f"[DB] get_transaction_by_id lookup error for id={transaction_id}: {e}")
+
         return None
 
     def create_transaction(self, record_data: Dict[str, Any]) -> TransactionRecord:
         """Persists a new scored transaction record."""
-        res = self.client.table("transactions").insert(record_data)
-        item = res.data[0] if isinstance(res.data, list) else res.data
-        return TransactionRecord(**item)
+        merchant_id = str(record_data.get("merchant_id", ""))
+        logger.info("[DB] inserting transaction")
+        logger.info("[DB] transaction repository table=transactions")
+        logger.info(f"[DB] merchant_id={merchant_id}")
+
+        if hasattr(self.client, "db_store"):
+            res = self.client.table("transactions").insert(record_data)
+            item = res.data[0] if isinstance(res.data, list) else res.data
+            logger.info("[DB] database response status=201 (in-memory)")
+            return TransactionRecord(**item)
+
+        try:
+            res = self.client.table("transactions").insert(record_data).execute()
+            status_code = getattr(res, "status_code", 201) if hasattr(res, "status_code") else 201
+            logger.info(f"[DB] database response status={status_code}")
+            item = res.data[0] if (res.data and isinstance(res.data, list)) else res.data
+            if item:
+                return TransactionRecord(**item)
+        except Exception as e:
+            logger.error(f"[DB] database insert error: {e}")
+            # Direct REST fallback using service key
+            try:
+                from backend.app.config import get_settings
+                import httpx
+                settings = get_settings()
+                if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY and "mock" not in settings.SUPABASE_URL:
+                    headers = {
+                        "apikey": settings.SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
+                        "Content-Type": "application/json",
+                        "Prefer": "return=representation",
+                    }
+                    resp = httpx.post(
+                        f"{settings.SUPABASE_URL.rstrip('/')}/rest/v1/transactions",
+                        headers=headers,
+                        json=record_data,
+                        timeout=5.0,
+                    )
+                    logger.info(f"[DB] database response status={resp.status_code}")
+                    if resp.status_code in [200, 201]:
+                        rows = resp.json()
+                        item = rows[0] if isinstance(rows, list) else rows
+                        return TransactionRecord(**item)
+                    else:
+                        logger.error(f"[DB] Direct REST insert failed: status={resp.status_code}, body={resp.text}")
+            except Exception as direct_err:
+                logger.error(f"[DB] Direct REST insert exception: {direct_err}")
+            raise e
+
+        raise RuntimeError("Failed to persist transaction to Supabase database.")
 
     def get_customer_history(
         self,
@@ -152,16 +204,82 @@ class TransactionsRepository:
         offset: int = 0,
     ) -> tuple[List[TransactionRecord], int]:
         """Fetches paginated transactions for a merchant with optional status filtering."""
-        query = (
-            self.client.table("transactions")
-            .select("*")
-            .eq("merchant_id", merchant_id)
-        )
-        if status:
-            query = query.eq("status", status)
+        logger.info("[DB] transaction repository table=transactions")
+        logger.info(f"[DB] merchant_id={merchant_id}")
 
-        query = query.order("created_at", desc=True).offset(offset).limit(limit)
-        res = query.execute()
-        rows = res.data if isinstance(res.data, list) else []
-        total = res.count if hasattr(res, "count") and res.count is not None else len(rows)
-        return [TransactionRecord(**r) for r in rows], total
+        if hasattr(self.client, "db_store"):
+            query = (
+                self.client.table("transactions")
+                .select("*")
+                .eq("merchant_id", merchant_id)
+            )
+            if status:
+                query = query.eq("status", status)
+            query = query.order("created_at", desc=True).offset(offset).limit(limit)
+            res = query.execute()
+            rows = res.data if isinstance(res.data, list) else []
+            total = res.count if hasattr(res, "count") and res.count is not None else len(rows)
+            logger.info("[DB] database response status=200 (in-memory)")
+            return [TransactionRecord(**r) for r in rows], total
+
+        try:
+            query = (
+                self.client.table("transactions")
+                .select("*", count="exact")
+                .eq("merchant_id", merchant_id)
+            )
+            if status:
+                query = query.eq("status", status)
+
+            query = query.order("created_at", desc=True).offset(offset).limit(limit)
+            res = query.execute()
+            status_code = getattr(res, "status_code", 200) if hasattr(res, "status_code") else 200
+            logger.info(f"[DB] database response status={status_code}")
+            rows = res.data if isinstance(res.data, list) else []
+            total = res.count if hasattr(res, "count") and res.count is not None else len(rows)
+            return [TransactionRecord(**r) for r in rows], total
+        except Exception as e:
+            logger.error(f"[DB] database query error: {e}")
+            # Direct REST fallback with service key
+            try:
+                from backend.app.config import get_settings
+                import httpx
+                settings = get_settings()
+                if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY and "mock" not in settings.SUPABASE_URL:
+                    headers = {
+                        "apikey": settings.SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
+                        "Range-Unit": "items",
+                        "Prefer": "count=exact",
+                    }
+                    params = {
+                        "select": "*",
+                        "merchant_id": f"eq.{merchant_id}",
+                        "order": "created_at.desc",
+                        "offset": str(offset),
+                        "limit": str(limit),
+                    }
+                    if status:
+                        params["status"] = f"eq.{status}"
+                    resp = httpx.get(
+                        f"{settings.SUPABASE_URL.rstrip('/')}/rest/v1/transactions",
+                        headers=headers,
+                        params=params,
+                        timeout=5.0,
+                    )
+                    logger.info(f"[DB] database response status={resp.status_code}")
+                    if resp.status_code in [200, 206]:
+                        rows = resp.json()
+                        total = len(rows)
+                        content_range = resp.headers.get("content-range", "")
+                        if "/" in content_range:
+                            try:
+                                total = int(content_range.split("/")[-1])
+                            except Exception:
+                                pass
+                        return [TransactionRecord(**r) for r in rows], total
+                    else:
+                        logger.error(f"[DB] Direct REST query failed: status={resp.status_code}, body={resp.text}")
+            except Exception as direct_err:
+                logger.error(f"[DB] Direct REST query exception: {direct_err}")
+            raise e
